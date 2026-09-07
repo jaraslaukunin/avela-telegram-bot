@@ -1,2 +1,16 @@
-# avela-telegram-bot
-Avela — Telegram bot for medical appointment booking, reminders and clinic information. | Авела - Telegram-бот для брони медицинскох консультаций, оповещений и медицинской информации.
+# Avela
+
+> Запись к врачу — в удобное время.
+
+Avela — Telegram-бот для предварительной записи на приём к врачу.
+Пользователь может выбрать специальность, врача, свободную дату и время,
+создать или отменить запись, получить напоминание о визите
+и ознакомиться со справочной информацией о медицинском учреждении.
+
+## Planned stack
+
+- Python 3.12
+- aiogram 3
+- Supabase PostgreSQL
+- APScheduler
+- Docker / Ubuntu VPS
