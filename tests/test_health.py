@@ -1,4 +1,6 @@
 """Тесты публичных health/ready/status (нужна Postgres)."""
+from collections.abc import AsyncIterator
+
 import httpx
 import pytest
 from fastapi import FastAPI
@@ -17,7 +19,7 @@ def client(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) -> httpx.A
     application = FastAPI()
     application.include_router(health_router)
 
-    async def override_session() -> AsyncSession:
+    async def override_session() -> AsyncIterator[AsyncSession]:
         yield db_session
 
     application.dependency_overrides[get_session] = override_session
