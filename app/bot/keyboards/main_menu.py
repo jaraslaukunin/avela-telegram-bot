@@ -9,10 +9,10 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text="📋 Мои записи"),
-                KeyboardButton(text="🔎 Поиск"),
+                KeyboardButton(text="👤 Профиль"),
             ],
             [
-                KeyboardButton(text="👤 Профиль"),
+                KeyboardButton(text="❌ Отменить действие"),
                 KeyboardButton(text="ℹ️ Информация"),
             ],
         ],

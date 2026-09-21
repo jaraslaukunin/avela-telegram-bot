@@ -7,6 +7,7 @@ import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,6 +19,9 @@ from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
 from app.api.privacy import router as privacy_router
+from app.bot.handlers.appointments import router as bot_appointments_router
+from app.bot.handlers.booking import router as bot_booking_router
+from app.bot.handlers.fallback import router as bot_fallback_router
 from app.bot.handlers.profile import router as profile_router
 from app.bot.handlers.start import router as start_router
 from app.bot.webhook import WEBHOOK_PATH, build_webhook_router
@@ -35,9 +39,12 @@ bot = Bot(
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 
-dispatcher = Dispatcher()
+dispatcher = Dispatcher(storage=MemoryStorage())
 dispatcher.include_router(start_router)
+dispatcher.include_router(bot_booking_router)
+dispatcher.include_router(bot_appointments_router)
 dispatcher.include_router(profile_router)
+dispatcher.include_router(bot_fallback_router)
 
 
 @asynccontextmanager

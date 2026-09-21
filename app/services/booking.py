@@ -74,6 +74,25 @@ async def get_appointment_context_for_admin(
     return await _fetch_appointment_context(session, appointment_id)
 
 
+async def list_patient_appointments(
+    session: AsyncSession,
+    patient_id: uuid.UUID,
+) -> list[AppointmentContext]:
+    """Записи пациента: активные впереди, по возрастанию времени приёма."""
+    stmt = (
+        select(Appointment, Slot, Doctor, Service, Branch)
+        .join(Slot, Appointment.slot_id == Slot.id)
+        .join(Doctor, Slot.doctor_id == Doctor.id)
+        .join(Branch, Doctor.branch_id == Branch.id)
+        .join(Service, Slot.service_id == Service.id)
+        .where(Appointment.patient_id == patient_id)
+        .order_by((Appointment.status == "active").desc(), Slot.starts_at)
+        .limit(30)
+    )
+    rows = (await session.execute(stmt)).all()
+    return [(row[0], row[1], row[2], row[3], row[4]) for row in rows]
+
+
 async def _ensure_no_patient_overlap(
     session: AsyncSession,
     patient_id: uuid.UUID,
