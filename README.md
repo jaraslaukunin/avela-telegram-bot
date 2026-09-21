@@ -22,7 +22,10 @@ Avela — Telegram-бот и Telegram Mini App для предварительн
 - хранение профилей — в памяти (только для прототипа, заменим на БД);
 - FastAPI: `/health` и `/ready`;
 - webhook-роут `/telegram/webhook` с проверкой
-  `X-Telegram-Bot-Api-Secret-Token` (включается через `WEBHOOK_MODE=true`).
+  `X-Telegram-Bot-Api-Secret-Token` (включается через `WEBHOOK_MODE=true`);
+- серверная валидация Telegram Mini App initData: HMAC-SHA256,
+  constant-time сравнение, срок годности `auth_date`, разбор пользователя
+  (`app/core/security/initdata.py`).
 
 ## Роли
 
@@ -132,8 +135,8 @@ mypy app           # проверка типов
 ## Качество и CI (план)
 
 - lint (ruff), type-check (mypy), тесты — GitHub Actions;
-- автоматизированные тест-кейсы: валидация initData, права и tenant
-  isolation, бронирование и гонки, лимит 2 часов, уведомления;
+- автоматизированные тест-кейсы: права и tenant isolation, бронирование
+  и гонки, лимит 2 часов, уведомления;
 - staging/production deploy — только после отдельного согласования.
 
 Пока автоматизированных тестов в репозитории нет — добавятся в ближайших
