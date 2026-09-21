@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 
 import { ApiError, login } from "./api/client";
-import { detectLocale, type Locale } from "./i18n";
+import { detectLocale, translate, type Locale } from "./i18n";
 import { LocaleProvider, useT } from "./i18n/context";
 import BookingScreen from "./screens/BookingScreen";
 import HomeScreen from "./screens/HomeScreen";

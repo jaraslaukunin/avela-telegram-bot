@@ -60,6 +60,8 @@ export interface AppointmentOut {
   id: string;
   status: string;
   slot_id: string;
+  doctor_id: string;
+  service_id: string;
   starts_at: string;
   ends_at: string;
   doctor_name: string;
