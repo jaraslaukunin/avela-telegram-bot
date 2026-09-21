@@ -110,9 +110,9 @@
     </main>
 
     <script>
-      const API_BASE = window.location.hostname.includes("staging")
-        ? "https://api.staging.avela.jaraslau.dev"
-        : "https://api.avela.jaraslau.dev";
+      // Status page живёт на том же домене, что и API:
+      // https://avela.jaraslau.dev/status/ → https://avela.jaraslau.dev/api/status
+      const API_BASE = "/api";
 
       const LABELS = {
         api: "API",

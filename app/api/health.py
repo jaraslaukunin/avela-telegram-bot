@@ -39,7 +39,7 @@ async def ready(session: AsyncSession = Depends(get_session)) -> dict[str, objec
 
 @router.get("/status")
 async def public_status(session: AsyncSession = Depends(get_session)) -> dict[str, object]:
-    """Состояние компонентов для status.avela.jaraslau.dev.
+    """Состояние компонентов для status page (avela.jaraslau.dev/status/).
 
     Не раскрывает секреты, строки подключения, адреса и данные пациентов.
     """

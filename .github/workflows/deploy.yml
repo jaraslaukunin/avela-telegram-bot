@@ -46,7 +46,7 @@ jobs:
         run: docker build -t avela-backend:${{ github.sha }} .
       - name: Build frontend image
         run: |
-          API_URL="${{ github.event.inputs.environment == 'production' && 'https://api.avela.jaraslau.dev' || 'https://api.staging.avela.jaraslau.dev' }}"
+          API_URL="${{ github.event.inputs.environment == 'production' && 'https://avela.jaraslau.dev/api' || 'https://staging.avela.jaraslau.dev/api' }}"
           docker build --build-arg VITE_API_URL="$API_URL" -t avela-web:${{ github.sha }} frontend
 
   deploy:

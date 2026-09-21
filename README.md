@@ -286,7 +286,7 @@ python -m app.cli seed-demo                   # демо-сеть, врач и �
 
 ## Status page
 
-`status/index.html` — статика для `status.avela.jaraslau.dev`. Показывает
+`status/index.html` — статика для `avela.jaraslau.dev/status/`. Показывает
 состояние API, БД, worker'а и способа доставки Telegram, обновляется каждые
 30 секунд. Публичный JSON — `GET /status`. Страница не раскрывает секреты,
 строки подключения, внутренние адреса и данные пациентов.
@@ -317,9 +317,9 @@ python -m app.cli seed-demo                   # демо-сеть, врач и �
 
 - VPS Ubuntu 24.04, Docker Compose: backend, worker, статика Mini App, Nginx;
 - БД и Storage — Supabase (локальная БД в production не поднимается);
-- webhook: `POST https://bot.avela.jaraslau.dev/telegram/webhook`;
-- Mini App: `avela.jaraslau.dev`, API: `api.avela.jaraslau.dev`,
-  status page: `status.avela.jaraslau.dev`;
+- webhook: `POST https://avela.jaraslau.dev/api/telegram/webhook`;
+- всё на одном домене `avela.jaraslau.dev`: Mini App — `/`,
+  API — `/api/*`, status page — `/status/`;
 - DNS — Cloudflare, TLS Full (strict).
 
 ```bash

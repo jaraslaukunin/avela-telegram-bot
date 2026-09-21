@@ -36,7 +36,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-https://api.avela.jaraslau.dev}
+        VITE_API_URL: ${VITE_API_URL:-https://avela.jaraslau.dev/api}
     image: avela-web:latest
     restart: unless-stopped
     expose:

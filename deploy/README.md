@@ -64,13 +64,13 @@ A-записи на IP VPS (проксирование включено):
    Let's Encrypt) — положить `fullchain.pem` и `privkey.pem` в
    `deploy/certs/` на сервере.
 2. В `.env`: `WEBHOOK_MODE=true`, `WEBHOOK_SECRET=<случайная строка>`,
-   `WEBHOOK_BASE_URL=https://bot.avela.jaraslau.dev`.
+   `WEBHOOK_BASE_URL=https://avela.jaraslau.dev/api`.
 3. `docker compose -f docker-compose.prod.yml up -d --build`
-4. Проверить: `curl https://api.avela.jaraslau.dev/status`
+4. Проверить: `curl https://avela.jaraslau.dev/api/status`
 
 ## Этап 5. Mini App
 
-1. Сборка уже идёт с `VITE_API_URL=https://api.avela.jaraslau.dev`
+1. Сборка уже идёт с `VITE_API_URL=https://avela.jaraslau.dev/api`
    (значение по умолчанию в docker-compose.prod.yml).
 2. В BotFather для @avela_med_bot: Bot Settings → Menu Button →
    URL = `https://avela.jaraslau.dev`.
@@ -81,7 +81,7 @@ A-записи на IP VPS (проксирование включено):
 - запись из Mini App и из чата бота;
 - «Мои записи», отмена и перенос;
 - уведомления приходят в чат (worker);
-- `https://status.avela.jaraslau.dev` показывает api/database/worker.
+- `https://avela.jaraslau.dev/status/` показывает api/database/worker.
 
 ## Полезное
 
