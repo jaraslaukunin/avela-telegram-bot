@@ -1,24 +1,32 @@
-from dataclasses import dataclass
-from os import getenv
+from typing import Any
 
-from dotenv import load_dotenv
-
-
-load_dotenv()
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass(frozen=True)
-class Settings:
-    bot_token: str
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    bot_token: str = Field(min_length=1)
+    webhook_mode: bool = False
+    webhook_secret: str = ""
+    webhook_base_url: str = ""
+    api_host: str = "127.0.0.1"
+    api_port: int = 8000
+
+    @model_validator(mode="after")
+    def _validate_webhook(self) -> "Settings":
+        if self.webhook_mode:
+            if not self.webhook_secret:
+                raise ValueError("WEBHOOK_MODE=true требует WEBHOOK_SECRET")
+            if not self.webhook_base_url:
+                raise ValueError("WEBHOOK_MODE=true требует WEBHOOK_BASE_URL")
+        return self
 
 
-def get_settings() -> Settings:
-    bot_token = getenv("BOT_TOKEN")
-
-    if not bot_token:
-        raise RuntimeError(
-            "Переменная окружения BOT_TOKEN не задана. "
-            "Добавь её в файл .env в корне проекта."
-        )
-
-    return Settings(bot_token=bot_token)
+def get_settings(**_overrides: Any) -> Settings:
+    return Settings(**_overrides)
