@@ -15,7 +15,9 @@ from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
 from app.models.schedule import Slot
 from app.models.user import User
-from app.services import notifications
+from app.services import audit, notifications
+
+AppointmentContext = tuple[Appointment, Slot, Doctor, Service, Branch]
 
 
 class BookingError(Exception):
@@ -34,23 +36,42 @@ class DeadlinePassedError(BookingError):
     pass
 
 
-async def get_appointment_context(
+async def _fetch_appointment_context(
     session: AsyncSession,
-    patient_id: uuid.UUID,
     appointment_id: uuid.UUID,
-) -> tuple[Appointment, Slot, Doctor, Service, Branch] | None:
+    patient_id: uuid.UUID | None = None,
+) -> AppointmentContext | None:
     stmt = (
         select(Appointment, Slot, Doctor, Service, Branch)
         .join(Slot, Appointment.slot_id == Slot.id)
         .join(Doctor, Slot.doctor_id == Doctor.id)
         .join(Branch, Doctor.branch_id == Branch.id)
         .join(Service, Slot.service_id == Service.id)
-        .where(Appointment.id == appointment_id, Appointment.patient_id == patient_id)
+        .where(Appointment.id == appointment_id)
     )
+    if patient_id is not None:
+        stmt = stmt.where(Appointment.patient_id == patient_id)
+
     row = (await session.execute(stmt)).one_or_none()
     if row is None:
         return None
     return row[0], row[1], row[2], row[3], row[4]
+
+
+async def get_appointment_context(
+    session: AsyncSession,
+    patient_id: uuid.UUID,
+    appointment_id: uuid.UUID,
+) -> AppointmentContext | None:
+    return await _fetch_appointment_context(session, appointment_id, patient_id)
+
+
+async def get_appointment_context_for_admin(
+    session: AsyncSession,
+    appointment_id: uuid.UUID,
+) -> AppointmentContext | None:
+    """Контекст записи без фильтра по пациенту — для административных действий."""
+    return await _fetch_appointment_context(session, appointment_id)
 
 
 async def _ensure_no_patient_overlap(
@@ -141,6 +162,37 @@ async def cancel_appointment(
 
     appointment.cancel("patient", now)
     notifications.enqueue_cancel_notification(session, appointment)
+    await session.commit()
+    return appointment
+
+
+async def cancel_appointment_by_admin(
+    session: AsyncSession,
+    actor: User,
+    appointment_id: uuid.UUID,
+    now_utc: datetime | None = None,
+) -> Appointment:
+    """Отмена администратором: без ограничения 2 часов, с записью в аудит."""
+    now = now_utc or datetime.now(UTC)
+    context = await _fetch_appointment_context(session, appointment_id)
+    if context is None:
+        raise AppointmentNotFoundError("Запись не найдена")
+
+    appointment, slot, _doctor, _service, branch = context
+    if not appointment.is_active:
+        raise BookingError("Запись уже отменена или перенесена")
+
+    appointment.cancel("admin", now)
+    notifications.enqueue_cancel_notification(session, appointment)
+    audit.write_audit(
+        session,
+        actor,
+        "appointment.cancel",
+        entity_type="appointment",
+        entity_id=appointment.id,
+        network_id=branch.network_id,
+        details={"slot_id": str(slot.id), "branch_id": str(branch.id)},
+    )
     await session.commit()
     return appointment
 

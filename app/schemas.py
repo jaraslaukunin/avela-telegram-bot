@@ -1,7 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TelegramLoginRequest(BaseModel):
@@ -95,3 +96,131 @@ class BookingRequest(BaseModel):
 
 class RescheduleRequest(BaseModel):
     new_slot_id: uuid.UUID
+
+
+# --- Административные схемы ---
+
+
+class IsActiveUpdate(BaseModel):
+    is_active: bool | None = None
+
+
+class NetworkCreate(BaseModel):
+    slug: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=200)
+
+
+class NetworkUpdate(IsActiveUpdate):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class BranchCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    city: str = ""
+    region: str = ""
+    address: str = ""
+    phone: str = ""
+    timezone: str = "Europe/Moscow"
+
+    @field_validator("timezone")
+    @classmethod
+    def _validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except Exception as exc:
+            raise ValueError(f"Неизвестный часовой пояс: {value}") from exc
+        return value
+
+
+class BranchUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    city: str | None = None
+    region: str | None = None
+    address: str | None = None
+    phone: str | None = None
+    timezone: str | None = None
+    is_active: bool | None = None
+
+
+class ServiceCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    duration_minutes: int = Field(gt=0, le=480)
+
+
+class ServiceUpdate(IsActiveUpdate):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    duration_minutes: int | None = Field(default=None, gt=0, le=480)
+
+
+class DoctorCreate(BaseModel):
+    full_name: str = Field(min_length=1, max_length=300)
+    specialty: str = ""
+    service_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class DoctorUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=300)
+    specialty: str | None = None
+    is_active: bool | None = None
+
+
+class DoctorServicesUpdate(BaseModel):
+    service_ids: list[uuid.UUID]
+
+
+class BranchAdminAssign(BaseModel):
+    telegram_id: int
+
+
+class ScheduleTemplateCreate(BaseModel):
+    service_id: uuid.UUID
+    weekday: int = Field(ge=0, le=6)
+    start_time: time
+    end_time: time
+    valid_from: date
+    valid_until: date | None = None
+
+    @field_validator("end_time")
+    @classmethod
+    def _validate_times(cls, value: time, info: object) -> time:
+        start = getattr(info, "data", {}).get("start_time")
+        if isinstance(start, time) and value <= start:
+            raise ValueError("end_time должен быть позже start_time")
+        return value
+
+
+class ScheduleTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    doctor_id: uuid.UUID
+    service_id: uuid.UUID
+    weekday: int
+    start_time: time
+    end_time: time
+    valid_from: date
+    valid_until: date | None
+    is_active: bool
+
+
+class SlotGenerationRequest(BaseModel):
+    from_date: date
+    to_date: date
+
+
+class SlotGenerationResult(BaseModel):
+    created: int
+    skipped: int
+
+
+class AdminAppointmentOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    patient_telegram_id: int
+    patient_name: str
+    doctor_name: str
+    branch_id: uuid.UUID
+    branch_name: str
+    starts_at: datetime
+    ends_at: datetime
+    cancelled_by: str | None

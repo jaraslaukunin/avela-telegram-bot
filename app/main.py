@@ -9,6 +9,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from fastapi import FastAPI
 
+from app.api.admin_appointments import router as admin_appointments_router
+from app.api.admin_catalog import router as admin_catalog_router
 from app.api.appointments import router as appointments_router
 from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
@@ -71,6 +73,8 @@ def create_app() -> FastAPI:
     application.include_router(auth_router)
     application.include_router(catalog_router)
     application.include_router(appointments_router)
+    application.include_router(admin_catalog_router)
+    application.include_router(admin_appointments_router)
     application.include_router(build_webhook_router(bot, dispatcher, settings))
     return application
 

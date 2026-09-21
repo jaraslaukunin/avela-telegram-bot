@@ -1,3 +1,4 @@
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
@@ -33,3 +34,16 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="Пользователь не найден или заблокирован")
     return user
+
+
+def require_roles(*roles: str) -> Callable[..., Awaitable[User]]:
+    """Зависимость FastAPI: пропускает только пользователей с указанными ролями."""
+
+    async def dependency(
+        current: Annotated[User, Depends(get_current_user)],
+    ) -> User:
+        if current.role not in roles:
+            raise HTTPException(status_code=403, detail="Недостаточно прав")
+        return current
+
+    return dependency
