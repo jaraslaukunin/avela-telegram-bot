@@ -1,12 +1,24 @@
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Time, Uuid, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Time,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-from app.models.catalog import Doctor, Service
+
+if TYPE_CHECKING:
+    from app.models.catalog import Doctor, Service
 
 
 class ScheduleTemplate(Base):
@@ -32,7 +44,9 @@ class ScheduleTemplate(Base):
     valid_from: Mapped[date] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     def generate_slots(
         self,
@@ -85,10 +99,12 @@ class Slot(Base):
     )
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
-    doctor: Mapped[Doctor] = relationship(lazy="selectin")
-    service: Mapped[Service] = relationship(lazy="selectin")
+    doctor: Mapped["Doctor"] = relationship(lazy="selectin")
+    service: Mapped["Service"] = relationship(lazy="selectin")
 
     def overlaps(self, other: "Slot") -> bool:
         """Пересечение интервалов [start, end)."""

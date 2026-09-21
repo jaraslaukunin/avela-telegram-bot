@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
 import uvicorn
 from aiogram import Bot, Dispatcher
@@ -52,8 +52,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     if poll_task is not None:
         poll_task.cancel()
-        with suppress(asyncio.CancelledError):
+        try:
             await poll_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Polling оборван при остановке (нормально при аварийном завершении)",
+                exc_info=True,
+            )
 
     await bot.session.close()
 

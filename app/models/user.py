@@ -1,11 +1,15 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, String, Text, Uuid, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.notification import Notification
 
 
 class User(Base):
@@ -25,8 +29,16 @@ class User(Base):
         ForeignKey("networks.id", ondelete="SET NULL")
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="user", lazy="selectin"
+    )
 
     @property
     def is_patient(self) -> bool:
@@ -64,4 +76,6 @@ class AuditLog(Base):
     entity_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     network_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     details: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

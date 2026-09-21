@@ -1,13 +1,16 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-from app.models.catalog import Branch
-from app.models.schedule import Slot
-from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.catalog import Branch
+    from app.models.schedule import Slot
+    from app.models.user import User
 
 
 class Appointment(Base):
@@ -28,12 +31,16 @@ class Appointment(Base):
         ForeignKey("appointments.id")
     )
     cancelled_by: Mapped[str | None] = mapped_column(String(20))
-    cancelled_at: Mapped[datetime | None] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
-    slot: Mapped[Slot] = relationship(lazy="selectin")
-    patient: Mapped[User] = relationship(lazy="selectin")
+    slot: Mapped["Slot"] = relationship(lazy="selectin")
+    patient: Mapped["User"] = relationship(lazy="selectin")
 
     @property
     def is_active(self) -> bool:
