@@ -1,0 +1,4 @@
+# Supabase CLI — связь с облачным проектом Avela.
+# Полный конфиг генерируется командой `supabase init`;
+# здесь — только привязка к проекту.
+project_id = "nctnayzkbcgobanxyabv"

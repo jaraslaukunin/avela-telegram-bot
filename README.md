@@ -141,6 +141,28 @@ TEST_DATABASE_URL=postgresql+asyncpg://avela:avela@localhost:5432/avela pytest -
 пациента запрещены на уровне PostgreSQL (exclusion constraint, частичный
 уникальный индекс, триггер), а не только в коде.
 
+## Подключение Supabase
+
+Проект: `nctnayzkbcgobanxyabv` (`https://nctnayzkbcgobanxyabv.supabase.co`).
+
+Миграции схемы — SQL-файлы в `supabase/migrations/`, применяются Supabase CLI
+(Alembic не используем). Разово на машине разработчика:
+
+```bash
+brew install supabase/tap/supabase   # если CLI ещё не установлен
+supabase login
+supabase link --project-ref nctnayzkbcgobanxyabv
+supabase db push
+```
+
+Ключи (`anon`, `service_role`) — в дашборде Supabase → Settings → API.
+`service_role` живёт только в окружении backend (`.env`/секреты сервера)
+и никогда не попадает в браузер. Строка подключения к production БД —
+дашборд → Connect → Session pooler.
+
+RLS включён на всех таблицах deny-by-default: backend ходит как владелец
+схемы, прямой доступ через Supabase REST/anon ничего не видит.
+
 ## Переменные окружения
 
 См. `.env.example`. Секреты (BOT_TOKEN, ключи Supabase, webhook secret)

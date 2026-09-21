@@ -1,13 +1,27 @@
 from collections.abc import AsyncIterator
+from functools import lru_cache
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.config import get_settings
 
-engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
-session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+@lru_cache
+def get_engine() -> AsyncEngine:
+    """Ленивое создание движка.
+
+    Настройки читаются при первом использовании, а не при импорте —
+    иначе импорт `app.db` падал бы в окружениях без BOT_TOKEN (например, CI).
+    """
+    return create_async_engine(get_settings().database_url, pool_pre_ping=True)
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    async with session_factory() as session:
+    factory = async_sessionmaker(get_engine(), expire_on_commit=False)
+    async with factory() as session:
         yield session
