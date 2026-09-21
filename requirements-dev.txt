@@ -1,0 +1,7 @@
+# Инструменты разработки: тесты, lint, типы.
+-r requirements.txt
+
+pytest==8.3.5
+pytest-asyncio==0.25.3
+ruff==0.9.7
+mypy==1.15.0
