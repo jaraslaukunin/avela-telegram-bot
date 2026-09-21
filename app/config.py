@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     database_url: str = "postgresql+asyncpg://avela:avela@localhost:5432/avela"
+    jwt_secret: str = Field(min_length=32, default="dev-only-secret-change-me-0123456789")
+    jwt_ttl_seconds: int = 7 * 24 * 3600
 
     @model_validator(mode="after")
     def _validate_webhook(self) -> "Settings":

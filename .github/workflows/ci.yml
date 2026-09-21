@@ -58,4 +58,11 @@ jobs:
         env:
           PGPASSWORD: avela
         run: psql -h localhost -U avela -d avela -f supabase/migrations/20260921120000_init.sql
-      - run: pytest -q
+      - name: Run tests
+        run: |
+          pytest -q --tb=short -rA > pytest.log 2>&1 || {
+            code=$?
+            echo "::error::pytest failed with exit code $code — последние строки вывода:"
+            tail -n 80 pytest.log | awk '{ print "::error::" $0 }'
+            exit $code
+          }

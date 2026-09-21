@@ -9,6 +9,9 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from fastapi import FastAPI
 
+from app.api.appointments import router as appointments_router
+from app.api.auth import router as auth_router
+from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
 from app.bot.handlers.profile import router as profile_router
 from app.bot.handlers.start import router as start_router
@@ -58,6 +61,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     application = FastAPI(title="Avela", version="0.1.0", lifespan=lifespan)
     application.include_router(health_router)
+    application.include_router(auth_router)
+    application.include_router(catalog_router)
+    application.include_router(appointments_router)
     application.include_router(build_webhook_router(bot, dispatcher, settings))
     return application
 
