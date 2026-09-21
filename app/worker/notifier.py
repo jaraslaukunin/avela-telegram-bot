@@ -10,12 +10,14 @@ from typing import Protocol
 
 from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
 from app.models.notification import Notification
 from app.models.schedule import Slot
+from app.models.service import ServiceHeartbeat
 from app.models.user import User
 from app.services.notifications import REMINDER_KINDS, render_message
 
@@ -33,6 +35,17 @@ class DispatchResult:
     sent: int = 0
     skipped: int = 0
     failed: int = 0
+
+
+async def write_heartbeat(session: AsyncSession, name: str = "worker") -> None:
+    """Отмечает, что worker жив — читает публичная status page."""
+    now = datetime.now(UTC)
+    await session.execute(
+        pg_insert(ServiceHeartbeat)
+        .values(name=name, updated_at=now)
+        .on_conflict_do_update(index_elements=[ServiceHeartbeat.name], set_={"updated_at": now})
+    )
+    await session.commit()
 
 
 async def dispatch_pending_notifications(

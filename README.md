@@ -16,11 +16,8 @@ Avela — Telegram-бот и Telegram Mini App для предварительн
 
 ## Что уже работает
 
-- `/start` — приветствие и главное меню;
-- профиль: просмотр, сохранение номера телефона через кнопку Telegram
-  (с проверкой, что контакт принадлежит отправителю);
-- хранение профилей — в памяти (только для прототипа, заменим на БД);
-- FastAPI: `/health` и `/ready`;
+- `/start` — приветствие и главное меню; профиль бота (прототип, в памяти);
+- FastAPI: `/health`, `/ready`, публичный `/status` (состояние компонентов);
 - webhook-роут `/telegram/webhook` с проверкой
   `X-Telegram-Bot-Api-Secret-Token` (включается через `WEBHOOK_MODE=true`);
 - серверная валидация Telegram Mini App initData: HMAC-SHA256,
@@ -31,7 +28,17 @@ Avela — Telegram-бот и Telegram Mini App для предварительн
 - записи пациента: создание, свои записи, отмена и перенос с дедлайном
   2 часа (в часовом поясе филиала), защита от гонок и пересечений;
 - админ-API `/admin/*`: роли, изоляция сетей, врачи, шаблоны расписания
-  с генерацией слотов, отмена записей администратором, аудит действий.
+  с генерацией слотов, отмена записей администратором, аудит действий;
+- worker уведомлений: очередь в БД, дедупликация, отправка сразу после
+  записи, напоминания за 24ч и 2ч, гашение напоминаний отменённых записей,
+  heartbeat для status page;
+- удаление аккаунта по запросу пациента: отмена активных записей,
+  анонимизация ПДн, запись в аудит (`POST /privacy/delete-me`);
+- защита API: строгий CORS, rate limiting, security headers, request id
+  в логах и ответах;
+- Telegram Mini App (React + TypeScript): запись, мои записи, перенос,
+  профиль, i18n ru/en/be-Latn;
+- status page: `status/index.html`, читает `/status`.
 
 ## Админ-API
 
@@ -87,10 +94,11 @@ Backend (Python 3.12):
 
 Frontend (монорепозиторий, каталог `frontend/`):
 
-- React, TypeScript, Vite, Telegram Web Apps SDK;
+- React, TypeScript, Vite, Telegram Web Apps SDK (типы `window.Telegram.WebApp`
+  объявлены локально — внешний npm-пакет не нужен);
 - React Router, TanStack Query;
 - i18n: русский, English, беларуская лацінка (be-Latn);
-- Vitest + React Testing Library.
+- Vitest (React Testing Library подключена для компонентных тестов).
 
 Инфраструктура:
 
@@ -109,19 +117,19 @@ Frontend (монорепозиторий, каталог `frontend/`):
 
 ```text
 app/
-  main.py         # FastAPI: lifespan, маршрут webhook
+  main.py         # FastAPI: lifespan, webhook, middleware
   config.py       # настройки (pydantic-settings)
-  api/            # HTTP-роутеры
-  core/           # security, auth/роли, audit, логирование
-  services/       # use cases: бронирование, расписание, уведомления
-  models/         # SQLAlchemy
-  repositories/
-  bot/            # aiogram: webhook-роутер, уведомления
-  worker/         # APScheduler: напоминания 24ч / 2ч
-frontend/         # Telegram Mini App
-supabase/         # SQL-миграции, RLS
-deploy/           # Docker Compose, Nginx
-.github/workflows # CI
+  api/            # роутеры: auth, catalog, appointments, admin, privacy, health
+  core/           # security (initdata, jwt), deps, middleware, rate_limit, logging, roles
+  services/       # use cases: booking, scheduling, notifications, privacy, audit, permissions
+  models/         # SQLAlchemy: каталог, расписание, записи, уведомления, аудит
+  bot/            # aiogram: webhook-роутер, хендлеры, клавиатуры
+  worker/         # APScheduler: отправка уведомлений и напоминаний
+frontend/         # Telegram Mini App (React + TypeScript + Vite)
+status/           # публичная status page (статика)
+supabase/         # SQL-миграции, RLS, config.toml
+deploy/           # Nginx-конфиг, сертификаты
+.github/workflows # CI и ручной деплой
 ```
 
 Время в БД — UTC; часовой пояс филиала — IANA identifier (по умолчанию
@@ -141,26 +149,41 @@ python -m app.main
 ```
 
 Команда поднимает FastAPI (uvicorn) на `127.0.0.1:8000` — там живут
-`/health`, `/ready` и webhook-роут. Параллельно бот работает на polling
-(webhook удаляется при старте — удобно для разработки). В production
-(`WEBHOOK_MODE=true`) обновления принимает webhook на Nginx.
+`/health`, `/ready`, `/status` и webhook-роут. Параллельно бот работает
+на polling (webhook удаляется при старте — удобно для разработки).
+В production (`WEBHOOK_MODE=true`) обновления принимает webhook на Nginx.
+
+Отдельно запускаются worker и Mini App:
+
+```bash
+python -m app.worker.main        # уведомления и напоминания (один процесс!)
+
+cd frontend && npm install && npm run dev   # Mini App на 127.0.0.1:5173
+```
 
 ## Разработка
 
 ```bash
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-pytest -q          # тесты
+pytest -q          # тесты (без TEST_DATABASE_URL интеграционные пропускаются)
 ruff check .       # lint
 mypy app           # проверка типов
+
+cd frontend
+npm run typecheck  # tsc
+npm run test       # vitest
+npm run build      # сборка Mini App
 ```
 
 ## Локальная база данных
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d db
-docker compose -f docker-compose.dev.yml exec db \
-  psql -U avela -d avela -f /migrations/20260921120000_init.sql
+for file in supabase/migrations/*.sql; do
+  docker compose -f docker-compose.dev.yml exec -T db \
+    psql -U avela -d avela -v ON_ERROR_STOP=1 -f "/migrations/$(basename "$file")"
+done
 TEST_DATABASE_URL=postgresql+asyncpg://avela:avela@localhost:5432/avela pytest -q
 ```
 
@@ -191,29 +214,110 @@ supabase db push
 RLS включён на всех таблицах deny-by-default: backend ходит как владелец
 схемы, прямой доступ через Supabase REST/anon ничего не видит.
 
+## Работа без локальной БД (сразу с Supabase)
+
+Docker и локальная Postgres не обязательны: приложение умеет работать прямо
+с облачным Supabase.
+
+```bash
+# 1. Применить миграции (из корня репозитория)
+supabase link --project-ref nctnayzkbcgobanxyabv
+supabase db push
+
+# 2. Взять строку подключения: дашборд → Connect → Session pooler
+#    и прописать её в .env (важно: драйвер asyncpg)
+#    DATABASE_URL=postgresql+asyncpg://postgres.nctnayzkbcgobanxyabv:ПАРОЛЬ@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+
+# 3. Запустить приложение — оно пойдёт в облако
+python -m app.main
+python -m app.worker.main
+```
+
+`service_role` key — только серверным компонентам (backend и worker).
+В frontend он не попадает никогда. Публикуемый ключ (`sb_publishable_...`)
+для клиента в MVP не нужен: Mini App общается только с нашим API.
+
+## Уведомления и worker
+
+- уведомления не отправляются из web-процесса: сервисный слой только кладёт
+  их в таблицу `notifications` со статусом `pending`;
+- отдельный singleton-процесс `python -m app.worker.main` каждые
+  `NOTIFIER_INTERVAL_SECONDS` секунд забирает готовые и отправляет;
+- виды: `booking_created`, `reminder_24h`, `reminder_2h`, `cancelled`,
+  `rescheduled`; дедупликация — уникальный индекс `(appointment_id, kind)`;
+- напоминания отменённых и перенесённых записей переводятся в `skipped`,
+  чтобы пациент не получил напоминание об отменённом приёме;
+- worker отмечает heartbeat в `service_heartbeats` — это питает status page.
+
+## Приватность и удаление данных
+
+`POST /privacy/delete-me` (авторизованный пациент) выполняет:
+
+1. отмену всех активных записей (пациент удаляет данные — приёмы не остаются в силе);
+2. перевод незакрытых уведомлений в `skipped`;
+3. затирание персональных полей (имя, username, телефон, язык);
+4. замену `telegram_id` на служебный отрицательный — новое обращение создаст
+   новый аккаунт;
+5. деактивацию аккаунта и запись `user.anonymize` в `audit_logs`.
+
+Клинические данные (диагнозы, исследования) мы не храним вообще, поэтому
+анонимизация ПДн и есть удаление. Юридическое соответствие требованиям
+законодательства требует отдельной проверки юристом.
+
+## Status page
+
+`status/index.html` — статика для `status.avela.jaraslau.dev`. Показывает
+состояние API, БД, worker'а и способа доставки Telegram, обновляется каждые
+30 секунд. Публичный JSON — `GET /status`. Страница не раскрывает секреты,
+строки подключения, внутренние адреса и данные пациентов.
+
 ## Переменные окружения
 
 См. `.env.example`. Секреты (BOT_TOKEN, ключи Supabase, webhook secret)
 живут только в `.env` и в секретах окружения — в репозиторий не попадают.
 
-## Качество и CI (план)
+Ключевые переменные: `BOT_TOKEN`, `DATABASE_URL` (asyncpg), `JWT_SECRET`
+(минимум 32 символа), `JWT_TTL_SECONDS`, `WEBHOOK_MODE` + `WEBHOOK_SECRET` +
+`WEBHOOK_BASE_URL`, `CORS_ORIGINS` (домены Mini App через запятую),
+`NOTIFIER_INTERVAL_SECONDS`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
-- lint (ruff), type-check (mypy), тесты — GitHub Actions;
-- автоматизированные тест-кейсы: права и tenant isolation, бронирование
-  и гонки, лимит 2 часов, уведомления;
-- staging/production deploy — только после отдельного согласования.
+## Качество и CI
 
-Пока автоматизированных тестов в репозитории нет — добавятся в ближайших
-итерациях.
+- lint (ruff), type-check (mypy), тесты — GitHub Actions; отдельная джоба
+  фронтенда: `npm run typecheck`, `vitest`, `npm run build`;
+- автоматизированные тест-кейсы: валидация initData, JWT-сессии, права
+  и tenant isolation, бронирование и гонка за слот, пересечения записей
+  пациента, лимит 2 часов, уведомления и дедупликация, worker, приватность,
+  middleware и rate limiting, i18n и API-клиент Mini App;
+- падение pytest печатает вывод в аннотациях check-run — видно без доступа
+  к логам;
+- staging/production deploy — только вручную и после подтверждения.
 
-## Деплой (план)
+## Деплой
 
-- VPS Ubuntu 24.04, Docker Compose: backend, worker, frontend-статика, Nginx;
-- БД и Storage — Supabase;
+- VPS Ubuntu 24.04, Docker Compose: backend, worker, статика Mini App, Nginx;
+- БД и Storage — Supabase (локальная БД в production не поднимается);
 - webhook: `POST https://bot.avela.jaraslau.dev/telegram/webhook`;
 - Mini App: `avela.jaraslau.dev`, API: `api.avela.jaraslau.dev`,
   status page: `status.avela.jaraslau.dev`;
 - DNS — Cloudflare, TLS Full (strict).
+
+```bash
+# на сервере, в каталоге репозитория
+cp .env.example .env          # заполнить секреты (BOT_TOKEN, DATABASE_URL, JWT_SECRET, WEBHOOK_*)
+mkdir -p deploy/certs         # положить fullchain.pem и privkey.pem
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+- `deploy/nginx/avela.conf` — TLS и маршрутизация доменов;
+- `docker-compose.prod.yml` — api, worker, web, nginx;
+- `.github/workflows/deploy.yml` — ручной выкат (workflow_dispatch) с
+  подтверждением `confirm=yes`; по умолчанию шаг деплоя выключен, пока не
+  задана переменная репозитория `DEPLOY_ENABLED=true` и секреты
+  `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`.
+
+Деплой выполняется только после отдельного согласования: VPS, DNS,
+сертификаты и GitHub Secrets настраиваются вручную.
 
 ## Автор
 

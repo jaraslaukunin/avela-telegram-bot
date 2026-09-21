@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Avela — состояние сервисов</title>
+    <style>
+      :root {
+        --bg: #faf7f0;
+        --card: #ffffff;
+        --text: #1c1c1e;
+        --muted: #6b7280;
+        --ok: #15803d;
+        --warn: #b45309;
+        --fail: #b42318;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #121417;
+          --card: #1b1f24;
+          --text: #f2f4f7;
+          --muted: #9aa3af;
+        }
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px;
+        margin-top: 16px;
+      }
+      .component {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+      }
+      .component:last-child {
+        border-bottom: none;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .fail {
+        color: var(--fail);
+      }
+      .bg-ok {
+        background: var(--ok);
+      }
+      .bg-warn {
+        background: var(--warn);
+      }
+      .bg-fail {
+        background: var(--fail);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Avela</h1>
+      <p class="muted">Состояние сервисов · обновляется каждые 30 секунд</p>
+
+      <section class="card">
+        <div id="summary" class="component">
+          <span>Общее состояние</span>
+          <span class="muted">загрузка…</span>
+        </div>
+        <div id="components"></div>
+      </section>
+
+      <section class="card">
+        <h2 style="font-size: 16px; margin: 0 0 8px">История инцидентов</h2>
+        <!--
+          MVP: инциденты ведутся вручную в этом массиве (дата — статус — описание).
+          Постмортемы не раскрывают персональные данные и внутренние адреса.
+        -->
+        <ul id="incidents" style="margin: 0; padding-left: 18px">
+          <li class="muted">Инцидентов не зафиксировано.</li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      const API_BASE = window.location.hostname.includes("staging")
+        ? "https://api.staging.avela.jaraslau.dev"
+        : "https://api.avela.jaraslau.dev";
+
+      const LABELS = {
+        api: "API",
+        database: "База данных",
+        worker: "Worker уведомлений",
+        telegram_delivery: "Доставка Telegram",
+      };
+
+      function stateClass(value) {
+        if (value === "ok") return "ok";
+        if (value === "failed") return "fail";
+        return "warn";
+      }
+
+      function renderComponents(components) {
+        const container = document.getElementById("components");
+        container.innerHTML = "";
+        for (const [name, value] of Object.entries(components)) {
+          const row = document.createElement("div");
+          row.className = "component";
+          row.innerHTML = `
+            <span><span class="dot bg-${stateClass(value)}"></span>${LABELS[name] ?? name}</span>
+            <span class="${stateClass(value)}">${value}</span>
+          `;
+          container.appendChild(row);
+        }
+      }
+
+      async function refresh() {
+        const summary = document.getElementById("summary");
+        try {
+          const response = await fetch(`${API_BASE}/status`, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          summary.innerHTML = `<span>Общее состояние</span><span class="${stateClass(data.status)}">${data.status}</span>`;
+          renderComponents(data.components);
+        } catch (error) {
+          summary.innerHTML = `<span>Общее состояние</span><span class="fail">недоступно</span>`;
+          renderComponents({ api: "failed" });
+        }
+      }
+
+      refresh();
+      setInterval(refresh, 30000);
+    </script>
+  </body>
+</html>

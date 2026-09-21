@@ -57,7 +57,11 @@ jobs:
       - name: Apply migrations
         env:
           PGPASSWORD: avela
-        run: psql -h localhost -U avela -d avela -f supabase/migrations/20260921120000_init.sql
+        run: |
+          for file in supabase/migrations/*.sql; do
+            echo "applying $file"
+            psql -h localhost -U avela -d avela -v ON_ERROR_STOP=1 -f "$file"
+          done
       - name: Run tests
         run: |
           pytest -q --tb=short -rA > pytest.log 2>&1 || {

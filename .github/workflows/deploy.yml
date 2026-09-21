@@ -1,0 +1,69 @@
+# Деплой на VPS. Запускается ТОЛЬКО вручную (workflow_dispatch) и только
+# после ввода подтверждения — случайных выкатов быть не должно.
+#
+# Требуется настроить в репозитории:
+#   Variables: DEPLOY_ENABLED=true   (без него шаг деплоя выключен)
+#   Secrets:   DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PATH
+# Без настроенных секретов безопасно проходит только сборка образов.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Окружение
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      confirm:
+        description: Введите yes, чтобы подтвердить деплой
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Проверка подтверждения
+        if: ${{ github.event.inputs.confirm != 'yes' }}
+        run: |
+          echo "::error::Деплой отменён: в поле confirm нужно ввести yes."
+          exit 1
+
+  build:
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t avela-backend:${{ github.sha }} .
+      - name: Build frontend image
+        run: |
+          API_URL="${{ github.event.inputs.environment == 'production' && 'https://api.avela.jaraslau.dev' || 'https://api.staging.avela.jaraslau.dev' }}"
+          docker build --build-arg VITE_API_URL="$API_URL" -t avela-web:${{ github.sha }} frontend
+
+  deploy:
+    needs: build
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Выкат на VPS по SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            git pull --ff-only
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.prod.yml ps

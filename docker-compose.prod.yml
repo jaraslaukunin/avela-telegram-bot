@@ -1,0 +1,57 @@
+# Production: VPS с Nginx, backend, worker и статикой Mini App.
+# БД и Storage — внешний Supabase: локальная БД в production не поднимается.
+#
+# Запуск:  docker compose -f docker-compose.prod.yml up -d --build
+# Файл .env должен лежать рядом (секреты — только на сервере).
+
+services:
+  api:
+    build: .
+    image: avela-backend:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    build: .
+    image: avela-backend:latest
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker.main"]
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.avela.jaraslau.dev}
+    image: avela-web:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/avela.conf:/etc/nginx/conf.d/avela.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+      - ./status:/var/www/status:ro
+    depends_on:
+      - api
+      - web
