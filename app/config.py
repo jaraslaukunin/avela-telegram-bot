@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Worker напоминаний
     notifier_interval_seconds: int = 30
 
+    # Публичный адрес Mini App — для кнопки «Приложение» в боте
+    mini_app_url: str = ""
+
     # Строгий CORS: разрешённые frontend-домены через запятую.
     cors_origins: str = ""
 

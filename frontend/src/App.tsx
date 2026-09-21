@@ -9,7 +9,7 @@ import HomeScreen from "./screens/HomeScreen";
 import MyAppointmentsScreen from "./screens/MyAppointmentsScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import RescheduleScreen from "./screens/RescheduleScreen";
-import { currentColorScheme, getTelegramLanguage } from "./telegram";
+import { currentColorScheme, getTelegramLanguage, waitForTelegramWebApp } from "./telegram";
 
 type AuthState = "loading" | "ready" | "error";
 
@@ -17,19 +17,41 @@ export default function App() {
   const [locale] = useState<Locale>(() => detectLocale(getTelegramLanguage()));
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState<string>("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     document.documentElement.dataset.theme = currentColorScheme();
+  }, []);
 
-    login()
-      .then(() => setAuthState("ready"))
+  useEffect(() => {
+    let cancelled = false;
+    setAuthState("loading");
+
+    const run = async () => {
+      await waitForTelegramWebApp();
+      return login();
+    };
+
+    run()
+      .then(() => {
+        if (!cancelled) {
+          setAuthState("ready");
+        }
+      })
       .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
         setAuthError(
           error instanceof ApiError ? error.message : "Не удалось выполнить вход",
         );
         setAuthState("error");
       });
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
   if (authState === "loading") {
     return (
@@ -42,7 +64,21 @@ export default function App() {
   if (authState === "error") {
     return (
       <LocaleProvider locale={locale}>
-        <ScreenMessage title="Avela" text={authError} />
+        <div className="screen screen--centered">
+          <h1 className="logo">Avela</h1>
+          <p className="muted">{authError}</p>
+          <p className="muted">
+            Приложение работает только внутри Telegram: откройте бота и нажмите
+            кнопку приложения, либо «Повторить», если окно только что открылось.
+          </p>
+          <button
+            className="button button--primary button--big"
+            onClick={() => setAttempt((value) => value + 1)}
+            type="button"
+          >
+            {translate(locale, "common.retry")}
+          </button>
+        </div>
       </LocaleProvider>
     );
   }

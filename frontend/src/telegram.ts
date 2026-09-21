@@ -39,6 +39,28 @@ export function getInitData(): string {
   return getTelegramWebApp()?.initData ?? "";
 }
 
+/**
+ * Ждёт появления window.Telegram.
+ *
+ * Скрипт telegram-web-app.js грузится отдельным тегом, и на части клиентов
+ * объект появляется чуть позже нашего бандла — без ожидания получаем
+ * пустую initData и ложное «откройте через Telegram».
+ */
+export async function waitForTelegramWebApp(timeoutMs = 3000): Promise<boolean> {
+  if (getTelegramWebApp()) {
+    return true;
+  }
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    if (getTelegramWebApp()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function getTelegramLanguage(): string | undefined {
   return getTelegramWebApp()?.initDataUnsafe?.user?.language_code;
 }
