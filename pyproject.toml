@@ -17,6 +17,11 @@ disallow_untyped_defs = true
 warn_unused_configs = true
 warn_redundant_casts = true
 
+# APScheduler поставляется без type stubs.
+[[tool.mypy.overrides]]
+module = ["apscheduler.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

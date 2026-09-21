@@ -7,13 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.deps import get_current_user
+from app.core.rate_limit import RateLimiter
 from app.core.security.initdata import InvalidInitDataError, validate_init_data
 from app.core.security.jwt import create_session_token
 from app.db import get_session
 from app.models.user import User
 from app.schemas import TelegramLoginRequest, TelegramLoginResponse, UserOut
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+AuthRateLimit = RateLimiter(limit=10)
+
+router = APIRouter(
+    prefix="/auth", tags=["auth"], dependencies=[Depends(AuthRateLimit)]
+)
 logger = logging.getLogger(__name__)
 
 

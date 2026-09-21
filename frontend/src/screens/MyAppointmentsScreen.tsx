@@ -1,0 +1,90 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { api } from "../api/client";
+import { formatDateTime, isCancellable } from "../format";
+import { useT } from "../i18n/context";
+
+export default function MyAppointmentsScreen() {
+  const t = useT();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  const state = location.state as { booked?: boolean } | null;
+
+  const appointments = useQuery({
+    queryKey: ["appointments"],
+    queryFn: api.myAppointments,
+  });
+
+  const cancel = useMutation({
+    mutationFn: (appointmentId: string) => api.cancel(appointmentId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["appointments"] }),
+  });
+
+  return (
+    <div className="screen">
+      <h2>{t("appointments.title")}</h2>
+
+      {state?.booked ? <p className="success">{t("booking.success")}</p> : null}
+      {appointments.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+      {appointments.data && appointments.data.length === 0 ? (
+        <p className="muted">{t("appointments.empty")}</p>
+      ) : null}
+
+      {appointments.data?.map((appointment) => {
+        const cancellable =
+          appointment.status === "active" && isCancellable(appointment.cancellable_until);
+
+        return (
+          <article className="card" key={appointment.id}>
+            <h3 className="card__title">{appointment.service_name}</h3>
+            <p className="card__meta">{appointment.doctor_name}</p>
+            <p className="card__meta">
+              {appointment.branch_name}
+              {appointment.branch_address ? `, ${appointment.branch_address}` : ""}
+            </p>
+            <p className="card__time">
+              {formatDateTime(appointment.starts_at, appointment.branch_timezone)}
+            </p>
+
+            {appointment.status !== "active" ? (
+              <p className="muted">{appointment.status}</p>
+            ) : null}
+
+            {appointment.status === "active" ? (
+              <div className="card__actions">
+                {cancellable ? (
+                  <>
+                    <button
+                      className="button button--danger"
+                      disabled={cancel.isPending}
+                      onClick={() => cancel.mutate(appointment.id)}
+                      type="button"
+                    >
+                      {t("appointments.cancel")}
+                    </button>
+                    <button
+                      className="button button--secondary"
+                      onClick={() =>
+                        navigate("/appointments/reschedule", { state: { appointment } })
+                      }
+                      type="button"
+                    >
+                      {t("appointments.reschedule")}
+                    </button>
+                  </>
+                ) : (
+                  <p className="muted">
+                    {t("appointments.deadlinePassed")}
+                    {appointment.branch_phone ? ` — ${appointment.branch_phone}` : ""}
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
+    </div>
+  );
+}

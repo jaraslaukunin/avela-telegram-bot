@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_roles
+from app.core.rate_limit import RateLimiter
 from app.core.roles import ADMIN_ROLES
 from app.db import get_session
 from app.models.appointment import Appointment
@@ -25,7 +26,11 @@ from app.services.booking import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+AdminAppointmentsRateLimit = RateLimiter(limit=120)
+
+router = APIRouter(
+    prefix="/admin", tags=["admin"], dependencies=[Depends(AdminAppointmentsRateLimit)]
+)
 
 AdminUser = Annotated[User, Depends(require_roles(*ADMIN_ROLES))]
 DbSession = Annotated[AsyncSession, Depends(get_session)]

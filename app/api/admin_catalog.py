@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_roles
+from app.core.rate_limit import RateLimiter
 from app.core.roles import (
     ADMIN_ROLES,
     ROLE_AVELA_ADMIN,
@@ -47,7 +48,11 @@ from app.schemas import (
 from app.services import audit, permissions
 from app.services.scheduling import SchedulingError, generate_slots_for_template
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+AdminCatalogRateLimit = RateLimiter(limit=120)
+
+router = APIRouter(
+    prefix="/admin", tags=["admin"], dependencies=[Depends(AdminCatalogRateLimit)]
+)
 
 AdminUser = Annotated[User, Depends(require_roles(*ADMIN_ROLES))]
 AvelaAdminUser = Annotated[User, Depends(require_roles(ROLE_AVELA_ADMIN))]

@@ -189,6 +189,11 @@ cython_debug/
 # Supabase CLI временные файлы (project-ref и прочее)
 supabase/.temp/
 
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.env
+
 # PyCharm
 #   JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #   be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

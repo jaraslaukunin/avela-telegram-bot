@@ -25,3 +25,8 @@ async def get_session() -> AsyncIterator[AsyncSession]:
     factory = async_sessionmaker(get_engine(), expire_on_commit=False)
     async with factory() as session:
         yield session
+
+
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Фабрика сессий для фоновых задач (worker)."""
+    return async_sessionmaker(get_engine(), expire_on_commit=False)

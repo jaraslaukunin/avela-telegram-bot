@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
+from app.core.rate_limit import RateLimiter
 from app.db import get_session
 from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
@@ -23,7 +24,9 @@ from app.services.booking import (
     reschedule_appointment,
 )
 
-router = APIRouter(tags=["appointments"])
+BookingRateLimit = RateLimiter(limit=30)
+
+router = APIRouter(tags=["appointments"], dependencies=[Depends(BookingRateLimit)])
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +41,8 @@ def _to_out(
         id=appointment.id,
         status=appointment.status,
         slot_id=slot.id,
+        doctor_id=doctor.id,
+        service_id=service.id,
         starts_at=slot.starts_at,
         ends_at=slot.ends_at,
         doctor_name=doctor.full_name,

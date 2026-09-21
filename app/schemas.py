@@ -31,6 +31,8 @@ class AppointmentOut(BaseModel):
     id: uuid.UUID
     status: str
     slot_id: uuid.UUID
+    doctor_id: uuid.UUID
+    service_id: uuid.UUID
     starts_at: datetime
     ends_at: datetime
     doctor_name: str
@@ -224,3 +226,9 @@ class AdminAppointmentOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
     cancelled_by: str | None
+
+
+class AnonymizationOut(BaseModel):
+    anonymized: bool
+    cancelled_appointments: int
+    skipped_notifications: int

@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32, default="dev-only-secret-change-me-0123456789")
     jwt_ttl_seconds: int = 7 * 24 * 3600
 
+    # Worker напоминаний
+    notifier_interval_seconds: int = 30
+
+    # Строгий CORS: разрешённые frontend-домены через запятую.
+    cors_origins: str = ""
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
     @model_validator(mode="after")
     def _validate_webhook(self) -> "Settings":
         if self.webhook_mode:
