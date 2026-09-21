@@ -27,10 +27,26 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: mypy app
+      - run: mypy app tests
 
   tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: avela
+          POSTGRES_PASSWORD: avela
+          POSTGRES_DB: avela
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U avela"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://avela:avela@localhost:5432/avela
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,4 +54,8 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Apply migrations
+        env:
+          PGPASSWORD: avela
+        run: psql -h localhost -U avela -d avela -f supabase/migrations/20260921120000_init.sql
       - run: pytest -q

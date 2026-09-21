@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     webhook_base_url: str = ""
     api_host: str = "127.0.0.1"
     api_port: int = 8000
+    database_url: str = "postgresql+asyncpg://avela:avela@localhost:5432/avela"
 
     @model_validator(mode="after")
     def _validate_webhook(self) -> "Settings":

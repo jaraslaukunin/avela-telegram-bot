@@ -127,6 +127,20 @@ ruff check .       # lint
 mypy app           # проверка типов
 ```
 
+## Локальная база данных
+
+```bash
+docker compose -f docker-compose.dev.yml up -d db
+docker compose -f docker-compose.dev.yml exec db \
+  psql -U avela -d avela -f /migrations/20260921120000_init.sql
+TEST_DATABASE_URL=postgresql+asyncpg://avela:avela@localhost:5432/avela pytest -q
+```
+
+Схема управляется только SQL-миграциями в `supabase/migrations/`
+(Supabase CLI; Alembic не используем). Пересечения слотов врача и записей
+пациента запрещены на уровне PostgreSQL (exclusion constraint, частичный
+уникальный индекс, триггер), а не только в коде.
+
 ## Переменные окружения
 
 См. `.env.example`. Секреты (BOT_TOKEN, ключи Supabase, webhook secret)
