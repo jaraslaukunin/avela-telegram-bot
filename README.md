@@ -337,7 +337,8 @@ docker compose -f docker-compose.prod.yml up -d --build
   `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`.
 
 Деплой выполняется только после отдельного согласования: VPS, DNS,
-сертификаты и GitHub Secrets настраиваются вручную.
+сертификаты и GitHub Secrets настраиваются вручную. Пошаговая инструкция
+первого развёртывания — в `deploy/README.md`, скрипт — `deploy/setup-vps.sh`.
 
 ## Автор
 

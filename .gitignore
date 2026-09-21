@@ -194,6 +194,9 @@ node_modules/
 frontend/dist/
 frontend/.env
 
+# Локальный инструментарий IDE
+.deepseek/
+
 # PyCharm
 #   JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #   be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

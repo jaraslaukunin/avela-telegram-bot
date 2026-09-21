@@ -19,6 +19,7 @@ from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
 from app.api.privacy import router as privacy_router
+from app.bot.errors import handle_bot_error
 from app.bot.handlers.appointments import router as bot_appointments_router
 from app.bot.handlers.booking import router as bot_booking_router
 from app.bot.handlers.fallback import router as bot_fallback_router
@@ -45,6 +46,7 @@ dispatcher.include_router(bot_booking_router)
 dispatcher.include_router(bot_appointments_router)
 dispatcher.include_router(profile_router)
 dispatcher.include_router(bot_fallback_router)
+dispatcher.errors.register(handle_bot_error)
 
 
 @asynccontextmanager

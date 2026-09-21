@@ -1,4 +1,5 @@
 """Общие помощники хэндлеров бота: пользователь, слоты, callback-данные."""
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -11,6 +12,8 @@ from app.models.user import User
 from app.services.booking import list_available_slots
 from app.services.users import get_or_create_user
 
+logger = logging.getLogger(__name__)
+
 SLOTS_WINDOW_DAYS = 14
 MAX_SLOT_BUTTONS = 12
 
@@ -19,24 +22,40 @@ async def get_bot_user(source: Message | CallbackQuery) -> User | None:
     """Находит (или создаёт) пользователя БД по данным Telegram update.
 
     telegram_id из update аутентичен: его присылает сам Telegram.
+    Если БД недоступна — пользователь получает понятное сообщение,
+    а не молчание.
     """
     telegram_user = source.from_user
     if telegram_user is None:
-        await source.answer(
-            "Не удалось определить ваш аккаунт Telegram. Попробуйте ещё раз.",
-            show_alert=True,
-        )
+        if isinstance(source, CallbackQuery):
+            await source.answer(
+                "Не удалось определить ваш аккаунт Telegram. Попробуйте ещё раз.",
+                show_alert=True,
+            )
+        else:
+            await source.answer(
+                "Не удалось определить ваш аккаунт Telegram. Попробуйте ещё раз."
+            )
         return None
 
     factory = get_session_factory()
-    async with factory() as session:
-        return await get_or_create_user(
-            session,
-            telegram_id=telegram_user.id,
-            first_name=telegram_user.first_name,
-            username=telegram_user.username,
-            language_code=telegram_user.language_code,
-        )
+    try:
+        async with factory() as session:
+            return await get_or_create_user(
+                session,
+                telegram_id=telegram_user.id,
+                first_name=telegram_user.first_name,
+                username=telegram_user.username,
+                language_code=telegram_user.language_code,
+            )
+    except Exception:
+        logger.exception("Не удалось получить пользователя из БД")
+        text = "База данных временно недоступна — попробуйте позже."
+        if isinstance(source, CallbackQuery):
+            await source.answer(text, show_alert=True)
+        else:
+            await source.answer(text)
+        return None
 
 
 def parse_uuid(data: str, prefix: str) -> uuid.UUID | None:
