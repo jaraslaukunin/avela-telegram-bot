@@ -9,6 +9,25 @@
     <title>Avela — запись к врачу</title>
     <!-- SDK Telegram: обязателен, иначе window.Telegram.WebApp и initData пустые -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Тёмная тема ДО первой отрисовки: без этого экран мигнёт светлым.
+      (function () {
+        try {
+          var webApp = window.Telegram && window.Telegram.WebApp;
+          var scheme = webApp && webApp.colorScheme ? webApp.colorScheme : null;
+          if (!scheme && window.matchMedia) {
+            scheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          }
+          if (scheme) {
+            document.documentElement.dataset.theme = scheme;
+          }
+        } catch (error) {
+          /* окно без matchMedia/Telegram — остаёмся на светлой теме */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

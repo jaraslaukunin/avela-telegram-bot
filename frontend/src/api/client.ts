@@ -174,6 +174,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  deletePatient: (patientId: string) =>
+    request<void>(`/patients/${patientId}`, { method: "DELETE" }),
 
   networks: () => request<NetworkOut[]>("/networks"),
   branches: (networkId: string) => request<BranchOut[]>(`/networks/${networkId}/branches`),

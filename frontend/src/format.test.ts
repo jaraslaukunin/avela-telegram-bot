@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDate, formatDateTime, formatTime, formatPrice, isCancellable } from "./format";
+import { ageFromBirth, formatDate, formatDateTime, formatTime, formatPrice, isCancellable } from "./format";
 
 describe("format", () => {
   it("форматирует дату в таймзоне филиала", () => {
@@ -30,5 +30,18 @@ describe("format", () => {
     expect(formatPrice("99.50")).toBe("99.50 р.");
     expect(formatPrice(null)).toBe("—");
     expect(formatPrice("")).toBe("—");
+  });
+
+  it("ageFromBirth считает возраст", () => {
+    expect(ageFromBirth(null)).toBeNull();
+    expect(ageFromBirth("не-дата")).toBeNull();
+    // Взрослый: родился 34 года назад
+    const adult = new Date();
+    adult.setFullYear(adult.getFullYear() - 34);
+    expect(ageFromBirth(adult.toISOString())).toBe(34);
+    // Ребёнок: родился 3 года назад
+    const child = new Date();
+    child.setFullYear(child.getFullYear() - 3);
+    expect(ageFromBirth(child.toISOString())).toBe(3);
   });
 });

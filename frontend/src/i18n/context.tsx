@@ -1,21 +1,68 @@
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
-import { translate, type Locale } from "./index";
+import { detectLocale, locales, translate, type Locale } from "./index";
+import { getTelegramLanguage } from "../telegram";
 
-const LocaleContext = createContext<Locale>("ru");
+const LOCALE_KEY = "avela_locale";
 
-export function LocaleProvider({
-  locale,
-  children,
-}: {
+interface I18nContextValue {
   locale: Locale;
-  children: ReactNode;
-}) {
-  return <LocaleContext.Provider value={locale}>{children}</LocaleContext.Provider>;
+  setLocale: (locale: Locale) => void;
+  t: (key: string) => string;
 }
 
-/** Возвращает функцию перевода для текущей локали. */
+const I18nContext = createContext<I18nContextValue | null>(null);
+
+function readStoredLocale(): Locale | null {
+  try {
+    const value = sessionStorage.getItem(LOCALE_KEY);
+    if (value && (locales as readonly string[]).includes(value)) {
+      return value as Locale;
+    }
+  } catch {
+    // приватный режим / запрет storage — просто вернём null
+  }
+  return null;
+}
+
+export function LocaleProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(
+    () => readStoredLocale() ?? detectLocale(getTelegramLanguage()),
+  );
+
+  const setLocale = useCallback((value: Locale) => {
+    setLocaleState(value);
+    try {
+      sessionStorage.setItem(LOCALE_KEY, value);
+    } catch {
+      // storage недоступен — язык живёт только в памяти сессии
+    }
+  }, []);
+
+  const t = useCallback((key: string) => translate(locale, key), [locale]);
+
+  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+/** Функция перевода для текущей локали. */
 export function useT(): (key: string) => string {
-  const locale = useContext(LocaleContext);
-  return (key: string) => translate(locale, key);
+  const context = useContext(I18nContext);
+  return context ? context.t : (key: string) => key;
+}
+
+export function useLocale(): Locale {
+  return useContext(I18nContext)?.locale ?? "ru";
+}
+
+export function useSetLocale(): (locale: Locale) => void {
+  return useContext(I18nContext)?.setLocale ?? (() => undefined);
 }

@@ -354,6 +354,106 @@ body {
   color: var(--muted);
 }
 
+/* Пациенты */
+
+.patients {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.patient {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ivory-card);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.patient--active {
+  outline: 2px solid var(--blue);
+}
+
+.patient__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+}
+
+.patient__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--blue-soft);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.patient__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.patient__name {
+  font-weight: 600;
+}
+
+.patient__meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.patient__delete {
+  border: none;
+  background: none;
+  color: var(--error);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.patient-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Переключатель языка */
+
+.lang-switcher {
+  display: flex;
+  gap: 6px;
+}
+
+.lang-switcher__item {
+  flex: 1;
+  min-height: 40px;
+  border: 1px solid var(--blue-soft);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.lang-switcher__item--active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+
 /* --- Лендинг --- */
 
 .landing {

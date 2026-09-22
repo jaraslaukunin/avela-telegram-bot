@@ -40,6 +40,29 @@ export function isCancellable(cancellableUntil: string, now: Date = new Date()):
 }
 
 /**
+ * Возраст на сегодня по дате рождения (ISO-строка).
+ * null, если дата неизвестна или некорректна.
+ */
+export function ageFromBirth(birthDate: string | null): number | null {
+  if (!birthDate) {
+    return null;
+  }
+
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
+/**
  * Цена приёма. Backend отдаёт numeric строкой (Decimal) — не теряем точность
  * и не показываем «120.00000000001» после умножений.
  */

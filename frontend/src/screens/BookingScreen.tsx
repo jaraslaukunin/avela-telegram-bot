@@ -4,13 +4,14 @@ import { useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
 import type { OfferOut, SlotOut } from "../api/types";
+import { AddPatientForm, PatientCard } from "../components/Patients";
 import { formatDate, formatPrice, formatTime } from "../format";
 import { useT } from "../i18n/context";
 import { hapticImpact } from "../telegram";
 
-type Step = "specialist" | "offers" | "slots" | "summary";
+type Step = "specialist" | "offers" | "slots" | "patient" | "summary";
 
-const STEP_ORDER: Step[] = ["specialist", "offers", "slots", "summary"];
+const STEP_ORDER: Step[] = ["specialist", "offers", "slots", "patient", "summary"];
 
 /**
  * Запись на приём: специалист → филиал и врач (с ценой и ближайшим временем)
@@ -32,8 +33,6 @@ export default function BookingScreen() {
   const [error, setError] = useState("");
 
   const [addingPatient, setAddingPatient] = useState(false);
-  const [patientName, setPatientName] = useState("");
-  const [patientBirth, setPatientBirth] = useState("");
 
   const services = useQuery({
     queryKey: ["service-names"],
@@ -61,7 +60,7 @@ export default function BookingScreen() {
         serviceId: offer?.service_id ?? "",
         doctorId: offer?.doctor_id,
       }),
-    enabled: Boolean(offer) && (step === "slots" || step === "summary"),
+    enabled: Boolean(offer) && (step === "slots" || step === "patient" || step === "summary"),
     staleTime: 10_000,
   });
 
@@ -72,15 +71,10 @@ export default function BookingScreen() {
   });
 
   const createPatient = useMutation({
-    mutationFn: () =>
-      api.createPatient({
-        full_name: patientName.trim(),
-        birth_date: patientBirth || null,
-      }),
+    mutationFn: (payload: { full_name: string; birth_date?: string | null }) =>
+      api.createPatient(payload),
     onSuccess: async (created) => {
       setAddingPatient(false);
-      setPatientName("");
-      setPatientBirth("");
       await queryClient.invalidateQueries({ queryKey: ["patients"] });
       setPatientId(created.id);
     },
@@ -252,7 +246,7 @@ export default function BookingScreen() {
                 className={value.id === slot?.id ? "slot slot--active" : "slot"}
                 onClick={() => {
                   setSlot(value);
-                  setStep("summary");
+                  setStep("patient");
                 }}
                 type="button"
               >
@@ -264,11 +258,69 @@ export default function BookingScreen() {
         </>
       ) : null}
 
-      {step === "summary" && offer && slot ? (
+      {step === "patient" ? (
         <>
           <button
             className="button button--secondary"
             onClick={() => setStep("slots")}
+            type="button"
+          >
+            {t("common.back")}
+          </button>
+
+          <h3 className="section__title">{t("booking.patientStep")}</h3>
+
+          {patients.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+
+          <div className="patients">
+            {patients.data?.map((patient) => (
+              <PatientCard
+                key={patient.id}
+                patient={patient}
+                selected={patient.id === patientId}
+                onSelect={() => setPatientId(patient.id)}
+              />
+            ))}
+          </div>
+
+          {addingPatient ? (
+            <AddPatientForm
+              onCreate={(fullName, birthDate) =>
+                createPatient.mutate({
+                  full_name: fullName,
+                  birth_date: birthDate || null,
+                })
+              }
+              onCancel={() => setAddingPatient(false)}
+            />
+          ) : (
+            <button
+              className="button button--secondary"
+              onClick={() => setAddingPatient(true)}
+              type="button"
+            >
+              {t("booking.addPatient")}
+            </button>
+          )}
+
+          {error ? <p className="error">{error}</p> : null}
+
+          <button
+            className="button button--primary button--big"
+            disabled={!patientId}
+            onClick={() => setStep("summary")}
+            type="button"
+          >
+            {t("booking.continue")}
+          </button>
+        </>
+      ) : null}
+
+      {step === "summary" && offer && slot ? (
+        <>
+          <button
+            className="button button--secondary"
+            onClick={() => setStep("patient")}
             type="button"
           >
             {t("common.back")}
@@ -294,56 +346,6 @@ export default function BookingScreen() {
             </p>
           </section>
 
-          <section className="card">
-            <h3 className="section__title">{t("booking.patient")}</h3>
-            <div className="section__body">
-              {patients.data?.map((patient) => (
-                <button
-                  key={patient.id}
-                  className={patient.id === patientId ? "choice choice--active" : "choice"}
-                  onClick={() => setPatientId(patient.id)}
-                  type="button"
-                >
-                  {patient.full_name}
-                  {patient.birth_date ? ` · ${patient.birth_date}` : ""}
-                </button>
-              ))}
-            </div>
-
-            {addingPatient ? (
-              <>
-                <input
-                  className="input"
-                  onChange={(event) => setPatientName(event.target.value)}
-                  placeholder={t("booking.patientName")}
-                  value={patientName}
-                />
-                <input
-                  className="input"
-                  onChange={(event) => setPatientBirth(event.target.value)}
-                  type="date"
-                  value={patientBirth}
-                />
-                <button
-                  className="button button--primary"
-                  disabled={!patientName.trim() || createPatient.isPending}
-                  onClick={() => createPatient.mutate()}
-                  type="button"
-                >
-                  {t("booking.save")}
-                </button>
-              </>
-            ) : (
-              <button
-                className="button button--secondary"
-                onClick={() => setAddingPatient(true)}
-                type="button"
-              >
-                {t("booking.addPatient")}
-              </button>
-            )}
-          </section>
-
           {error ? <p className="error">{error}</p> : null}
 
           <button
@@ -357,7 +359,9 @@ export default function BookingScreen() {
         </>
       ) : null}
 
-      {error && step !== "summary" ? <p className="error">{error}</p> : null}
+      {error && step !== "summary" && step !== "patient" ? (
+        <p className="error">{error}</p>
+      ) : null}
     </div>
   );
 }

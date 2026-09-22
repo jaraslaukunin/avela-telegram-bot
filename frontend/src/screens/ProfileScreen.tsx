@@ -1,11 +1,21 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { api } from "../api/client";
-import { useT } from "../i18n/context";
+import { useLocale, useSetLocale, useT } from "../i18n/context";
+import { locales, type Locale } from "../i18n";
+
+const LANGUAGE_LABELS: Record<Locale, string> = {
+  ru: "Рус",
+  en: "Eng",
+  "be-Latn": "Бел",
+};
 
 export default function ProfileScreen() {
   const t = useT();
+  const locale = useLocale();
+  const setLocale = useSetLocale();
   const [confirming, setConfirming] = useState(false);
   const [deleted, setDeleted] = useState(false);
 
@@ -41,6 +51,30 @@ export default function ProfileScreen() {
           </p>
         </div>
       ) : null}
+
+      <Link className="button button--secondary button--big" to="/patients">
+        {t("profile.patients")}
+      </Link>
+
+      <section className="card">
+        <h3 className="section__title">{t("profile.language")}</h3>
+        <div className="lang-switcher">
+          {locales.map((value) => (
+            <button
+              key={value}
+              className={
+                value === locale
+                  ? "lang-switcher__item lang-switcher__item--active"
+                  : "lang-switcher__item"
+              }
+              onClick={() => setLocale(value)}
+              type="button"
+            >
+              {LANGUAGE_LABELS[value]}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="section">
         <h3 className="section__title">{t("profile.deleteAccount")}</h3>

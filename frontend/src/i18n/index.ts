@@ -38,6 +38,8 @@ const ru: Dictionary = {
   "booking.patient": "Пациент",
   "booking.choosePatient": "выберите пациента",
   "booking.addPatient": "Добавить пациента",
+  "booking.patientStep": "Кто записывается?",
+  "booking.continue": "Продолжить",
   "booking.patientName": "ФИО пациента",
   "booking.save": "Сохранить",
   "booking.confirmBooking": "Подтвердить запись",
@@ -60,6 +62,8 @@ const ru: Dictionary = {
   "profile.title": "Профиль",
   "profile.name": "Имя",
   "profile.phone": "Телефон",
+  "profile.language": "Язык",
+  "profile.patients": "Мои пациенты",
   "profile.deleteAccount": "Удалить аккаунт и данные",
   "profile.deleteWarning":
     "Активные записи будут отменены, персональные данные — удалены. Действие необратимо.",
@@ -70,6 +74,16 @@ const ru: Dictionary = {
   "common.back": "Назад",
   "common.cancel": "Отмена",
   "common.confirm": "Да, подтверждаю",
+  // --- Пациенты ---
+  "patients.title": "Пациенты",
+  "patients.add": "Добавить пациента",
+  "patients.name": "ФИО",
+  "patients.birth": "Дата рождения",
+  "patients.adult": "Взрослый",
+  "patients.child": "Ребёнок",
+  "patients.delete": "Удалить",
+  "patients.deleteConfirm": "Удалить этого пациента?",
+  "patients.empty": "Пациентов пока нет — добавьте первого",
 
   // --- Админ-панель ---
   "admin.tab": "Админ",
@@ -172,6 +186,8 @@ const en: Dictionary = {
   "booking.patient": "Patient",
   "booking.choosePatient": "choose a patient",
   "booking.addPatient": "Add a patient",
+  "booking.patientStep": "Who is it for?",
+  "booking.continue": "Continue",
   "booking.patientName": "Patient full name",
   "booking.save": "Save",
   "booking.confirmBooking": "Confirm booking",
@@ -194,6 +210,8 @@ const en: Dictionary = {
   "profile.title": "Profile",
   "profile.name": "Name",
   "profile.phone": "Phone",
+  "profile.language": "Language",
+  "profile.patients": "My patients",
   "profile.deleteAccount": "Delete account and data",
   "profile.deleteWarning":
     "Active appointments will be cancelled and personal data deleted. This cannot be undone.",
@@ -204,6 +222,16 @@ const en: Dictionary = {
   "common.back": "Back",
   "common.cancel": "Cancel",
   "common.confirm": "Yes, confirm",
+  // --- Patients ---
+  "patients.title": "Patients",
+  "patients.add": "Add patient",
+  "patients.name": "Full name",
+  "patients.birth": "Date of birth",
+  "patients.adult": "Adult",
+  "patients.child": "Child",
+  "patients.delete": "Delete",
+  "patients.deleteConfirm": "Delete this patient?",
+  "patients.empty": "No patients yet — add the first one",
 
   // --- Admin panel ---
   "admin.tab": "Admin",
@@ -306,6 +334,8 @@ const beLatn: Dictionary = {
   "booking.patient": "Pacyjent",
   "booking.choosePatient": "abiarocie pacyjenta",
   "booking.addPatient": "Dadać pacyjenta",
+  "booking.patientStep": "Chto zapisvajecca?",
+  "booking.continue": "Dalej",
   "booking.patientName": "PIB pacyjenta",
   "booking.save": "Zachavać",
   "booking.confirmBooking": "Padcvierdzić zapis",
@@ -328,6 +358,8 @@ const beLatn: Dictionary = {
   "profile.title": "Profil",
   "profile.name": "Imia",
   "profile.phone": "Telefon",
+  "profile.language": "Mova",
+  "profile.patients": "Maje pacyjenty",
   "profile.deleteAccount": "Vydalić akaut i danych",
   "profile.deleteWarning":
     "Aktyŭnyja zapisy buduć adkanavany, asabistyja danych vydaleny. Dziejannie nieźvarotnaje.",
@@ -338,6 +370,16 @@ const beLatn: Dictionary = {
   "common.back": "Nazad",
   "common.cancel": "Admova",
   "common.confirm": "Tak, padcvierdžaju",
+  // --- Pacyjenty ---
+  "patients.title": "Pacyjenty",
+  "patients.add": "Dadać pacyjenta",
+  "patients.name": "Poŭnaje imia",
+  "patients.birth": "Data naradžennia",
+  "patients.adult": "Darosly",
+  "patients.child": "Dzicia",
+  "patients.delete": "Vydalić",
+  "patients.deleteConfirm": "Vydalić hetaha pacyjenta?",
+  "patients.empty": "Pacyjentaŭ pakul niama — dadajcie pieršaha",
 
   // --- Admin-panel ---
   "admin.tab": "Admin",
