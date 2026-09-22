@@ -397,7 +397,7 @@ async def create_service(
     current: AdminUser,
     session: DbSession,
 ) -> ServiceOut:
-    network = await _network_or_404(session, current, network_id)
+    await _network_or_404(session, current, network_id)
 
     service = Service(network_id=network_id, **payload.model_dump())
     session.add(service)

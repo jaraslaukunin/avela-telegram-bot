@@ -207,6 +207,37 @@ export const api = {
 
   // --- Админ-панель ---
   adminScope: () => request<AdminScopeOut>("/admin/scope"),
+  adminCreateService: (
+    networkId: string,
+    payload: { name: string; duration_minutes: number },
+  ) =>
+    request<ServiceOut>(`/admin/networks/${networkId}/services`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminCreateBranch: (
+    networkId: string,
+    payload: {
+      name: string;
+      city?: string;
+      address?: string;
+      phone?: string;
+      timezone?: string;
+    },
+  ) =>
+    request<BranchOut>(`/admin/networks/${networkId}/branches`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminUpdateBranch: (
+    branchId: string,
+    payload: { is_active?: boolean; name?: string; city?: string; phone?: string },
+  ) =>
+    request<BranchOut>(`/admin/branches/${branchId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
   adminBranches: (networkId?: string) =>
     request<BranchOut[]>(
       networkId ? `/admin/branches?network_id=${networkId}` : "/admin/branches",
