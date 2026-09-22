@@ -7,10 +7,11 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.deps import require_roles
 from app.core.rate_limit import RateLimiter
@@ -26,12 +27,13 @@ from app.models.catalog import Branch, Doctor, DoctorService, Network, Service
 from app.models.schedule import ScheduleTemplate
 from app.models.user import BranchAdmin, User
 from app.schemas import (
+    AdminDoctorOut,
+    AdminScopeOut,
     BranchAdminAssign,
     BranchCreate,
     BranchOut,
     BranchUpdate,
     DoctorCreate,
-    DoctorOut,
     DoctorServicesUpdate,
     DoctorUpdate,
     NetworkCreate,
@@ -83,11 +85,27 @@ async def _branch_or_404(session: AsyncSession, user: User, branch_id: uuid.UUID
 
 
 async def _doctor_or_404(session: AsyncSession, user: User, doctor_id: uuid.UUID) -> Doctor:
-    doctor = await session.get(Doctor, doctor_id)
+    doctor = await session.scalar(
+        select(Doctor)
+        .options(selectinload(Doctor.services))
+        .where(Doctor.id == doctor_id)
+    )
     if doctor is None:
         raise HTTPException(status_code=404, detail="Врач не найден")
     await _branch_or_404(session, user, doctor.branch_id)
     return doctor
+
+
+def _to_admin_doctor(doctor: Doctor) -> AdminDoctorOut:
+    return AdminDoctorOut(
+        id=doctor.id,
+        branch_id=doctor.branch_id,
+        full_name=doctor.full_name,
+        specialty=doctor.specialty,
+        photo_path=doctor.photo_path,
+        is_active=doctor.is_active,
+        service_ids=[service.id for service in doctor.services],
+    )
 
 
 async def _service_or_404(session: AsyncSession, user: User, service_id: uuid.UUID) -> Service:
@@ -404,7 +422,7 @@ async def update_service(
 @router.post("/branches/{branch_id}/doctors", status_code=201)
 async def create_doctor(
     branch_id: uuid.UUID, payload: DoctorCreate, current: AdminUser, session: DbSession
-) -> DoctorOut:
+) -> AdminDoctorOut:
     branch = await _branch_or_404(session, current, branch_id)
     await _validate_services_for_branch(session, branch, payload.service_ids)
 
@@ -427,26 +445,37 @@ async def create_doctor(
         details={"full_name": payload.full_name},
     )
     await session.commit()
-    return DoctorOut.model_validate(doctor)
+    return AdminDoctorOut(
+        id=doctor.id,
+        branch_id=doctor.branch_id,
+        full_name=doctor.full_name,
+        specialty=doctor.specialty,
+        photo_path=doctor.photo_path,
+        is_active=doctor.is_active,
+        service_ids=payload.service_ids,
+    )
 
 
 @router.get("/branches/{branch_id}/doctors")
 async def list_doctors(
     branch_id: uuid.UUID, current: AdminUser, session: DbSession
-) -> list[DoctorOut]:
+) -> list[AdminDoctorOut]:
     branch = await _branch_or_404(session, current, branch_id)
     doctors = (
         await session.execute(
-            select(Doctor).where(Doctor.branch_id == branch.id).order_by(Doctor.full_name)
+            select(Doctor)
+            .options(selectinload(Doctor.services))
+            .where(Doctor.branch_id == branch.id)
+            .order_by(Doctor.full_name)
         )
     ).scalars().all()
-    return [DoctorOut.model_validate(doctor) for doctor in doctors]
+    return [_to_admin_doctor(doctor) for doctor in doctors]
 
 
 @router.patch("/doctors/{doctor_id}")
 async def update_doctor(
     doctor_id: uuid.UUID, payload: DoctorUpdate, current: AdminUser, session: DbSession
-) -> DoctorOut:
+) -> AdminDoctorOut:
     doctor = await _doctor_or_404(session, current, doctor_id)
 
     for field_name, value in payload.model_dump(exclude_unset=True).items():
@@ -461,7 +490,7 @@ async def update_doctor(
         network_id=(await _branch_or_404(session, current, doctor.branch_id)).network_id,
     )
     await session.commit()
-    return DoctorOut.model_validate(doctor)
+    return _to_admin_doctor(doctor)
 
 
 @router.put("/doctors/{doctor_id}/services")
@@ -590,3 +619,38 @@ async def generate_slots(
     )
     await session.commit()
     return SlotGenerationResult(created=created, skipped=skipped)
+
+
+@router.get("/schedule-templates")
+async def list_schedule_templates(
+    current: AdminUser,
+    session: DbSession,
+    doctor_id: uuid.UUID = Query(...),
+) -> list[ScheduleTemplateOut]:
+    """Шаблоны расписания врача — из них генерируются слоты."""
+    doctor = await _doctor_or_404(session, current, doctor_id)
+    templates = (
+        await session.execute(
+            select(ScheduleTemplate)
+            .where(ScheduleTemplate.doctor_id == doctor.id)
+            .order_by(ScheduleTemplate.weekday, ScheduleTemplate.start_time)
+        )
+    ).scalars().all()
+    return [ScheduleTemplateOut.model_validate(template) for template in templates]
+
+
+@router.get("/scope")
+async def admin_scope(current: AdminUser, session: DbSession) -> AdminScopeOut:
+    """Зона видимости администратора: роль и доступные сети/филиалы.
+
+    Нужна интерфейсу, чтобы не показывать заведомо недоступные разделы.
+    """
+    network_ids = await permissions.scoped_network_ids(session, current)
+    branch_ids = await permissions.scoped_branch_ids(session, current)
+
+    return AdminScopeOut(
+        role=current.role,
+        can_access_all=network_ids is None and branch_ids is None,
+        network_ids=list(network_ids or []),
+        branch_ids=list(branch_ids or []),
+    )

@@ -48,6 +48,12 @@ export interface DoctorOut {
   photo_path: string | null;
 }
 
+/** Врач в админке: с признаком активности и списком услуг. */
+export interface AdminDoctorOut extends DoctorOut {
+  is_active: boolean;
+  service_ids: string[];
+}
+
 export interface SlotOut {
   id: string;
   doctor_id: string;
@@ -77,4 +83,44 @@ export interface AnonymizationOut {
   anonymized: boolean;
   cancelled_appointments: number;
   skipped_notifications: number;
+}
+
+// --- Админ-панель ---
+
+export interface AdminScopeOut {
+  role: string;
+  can_access_all: boolean;
+  network_ids: string[];
+  branch_ids: string[];
+}
+
+export interface AdminAppointmentOut {
+  id: string;
+  status: string;
+  patient_telegram_id: number;
+  patient_name: string;
+  doctor_name: string;
+  branch_id: string;
+  branch_name: string;
+  branch_timezone: string;
+  starts_at: string;
+  ends_at: string;
+  cancelled_by: string | null;
+}
+
+export interface ScheduleTemplateOut {
+  id: string;
+  doctor_id: string;
+  service_id: string;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  valid_from: string;
+  valid_until: string | null;
+  is_active: boolean;
+}
+
+export interface SlotGenerationResult {
+  created: number;
+  skipped: number;
 }

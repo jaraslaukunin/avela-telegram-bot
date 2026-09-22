@@ -4,6 +4,11 @@ import { Link, Route, Routes } from "react-router-dom";
 import { ApiError, restoreOrLogin } from "./api/client";
 import { detectLocale, translate, type Locale } from "./i18n";
 import { LocaleProvider, useT } from "./i18n/context";
+import AdminAppointmentsScreen from "./screens/admin/AdminAppointmentsScreen";
+import AdminDoctorsScreen from "./screens/admin/AdminDoctorsScreen";
+import AdminHomeScreen from "./screens/admin/AdminHomeScreen";
+import AdminScheduleScreen from "./screens/admin/AdminScheduleScreen";
+import { useAdminScope } from "./screens/admin/useAdminScope";
 import BookingScreen from "./screens/BookingScreen";
 import HomeScreen from "./screens/HomeScreen";
 import MyAppointmentsScreen from "./screens/MyAppointmentsScreen";
@@ -53,6 +58,9 @@ export default function App() {
     };
   }, [attempt]);
 
+  const scope = useAdminScope({ enabled: authState === "ready" });
+  const isAdmin = Boolean(scope.data && scope.data.role !== "patient");
+
   if (authState === "loading") {
     return (
       <LocaleProvider locale={locale}>
@@ -93,8 +101,26 @@ export default function App() {
             <Route path="/appointments" element={<MyAppointmentsScreen />} />
             <Route path="/appointments/reschedule" element={<RescheduleScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
+
+            <Route
+              path="/admin"
+              element={isAdmin ? <AdminHomeScreen /> : <NoAccessScreen />}
+            />
+            <Route
+              path="/admin/appointments"
+              element={isAdmin ? <AdminAppointmentsScreen /> : <NoAccessScreen />}
+            />
+            <Route
+              path="/admin/doctors"
+              element={isAdmin ? <AdminDoctorsScreen /> : <NoAccessScreen />}
+            />
+            <Route
+              path="/admin/schedule"
+              element={isAdmin ? <AdminScheduleScreen /> : <NoAccessScreen />}
+            />
           </Routes>
         </main>
+
         <nav className="tabbar">
           <Link className="tabbar__item" to="/">
             {translate(locale, "app.title")}
@@ -105,9 +131,25 @@ export default function App() {
           <Link className="tabbar__item" to="/profile">
             {translate(locale, "profile.title")}
           </Link>
+          {isAdmin ? (
+            <Link className="tabbar__item" to="/admin">
+              {translate(locale, "admin.tab")}
+            </Link>
+          ) : null}
         </nav>
       </div>
     </LocaleProvider>
+  );
+}
+
+function NoAccessScreen() {
+  const t = useT();
+
+  return (
+    <div className="screen screen--centered">
+      <h2>{t("admin.noAccess")}</h2>
+      <p className="muted">{t("admin.noAccessHint")}</p>
+    </div>
   );
 }
 

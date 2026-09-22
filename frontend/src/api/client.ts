@@ -1,12 +1,17 @@
 import { getInitData } from "../telegram";
 import type {
+  AdminAppointmentOut,
+  AdminDoctorOut,
+  AdminScopeOut,
   AnonymizationOut,
   AppointmentOut,
   BranchOut,
   DoctorOut,
   LoginResponse,
   NetworkOut,
+  ScheduleTemplateOut,
   ServiceOut,
+  SlotGenerationResult,
   SlotOut,
   UserOut,
 } from "./types";
@@ -147,6 +152,72 @@ export const api = {
     }),
 
   deleteMe: () => request<AnonymizationOut>("/privacy/delete-me", { method: "POST" }),
+
+  // --- Админ-панель ---
+  adminScope: () => request<AdminScopeOut>("/admin/scope"),
+  adminBranches: (networkId?: string) =>
+    request<BranchOut[]>(
+      networkId ? `/admin/branches?network_id=${networkId}` : "/admin/branches",
+    ),
+  adminServices: (networkId?: string) =>
+    request<ServiceOut[]>(
+      networkId ? `/admin/services?network_id=${networkId}` : "/admin/services",
+    ),
+  adminAppointments: (branchId?: string) =>
+    request<AdminAppointmentOut[]>(
+      branchId ? `/admin/appointments?branch_id=${branchId}` : "/admin/appointments",
+    ),
+  adminCancelAppointment: (appointmentId: string) =>
+    request<AdminAppointmentOut>(`/admin/appointments/${appointmentId}/cancel`, {
+      method: "POST",
+    }),
+
+  adminDoctors: (branchId: string) =>
+    request<AdminDoctorOut[]>(`/admin/branches/${branchId}/doctors`),
+  adminCreateDoctor: (
+    branchId: string,
+    body: { full_name: string; specialty: string; service_ids: string[] },
+  ) =>
+    request<AdminDoctorOut>(`/admin/branches/${branchId}/doctors`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  adminUpdateDoctor: (
+    doctorId: string,
+    body: { full_name?: string; specialty?: string; is_active?: boolean },
+  ) =>
+    request<AdminDoctorOut>(`/admin/doctors/${doctorId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  adminSetDoctorServices: (doctorId: string, serviceIds: string[]) =>
+    request<ServiceOut[]>(`/admin/doctors/${doctorId}/services`, {
+      method: "PUT",
+      body: JSON.stringify({ service_ids: serviceIds }),
+    }),
+
+  adminScheduleTemplates: (doctorId: string) =>
+    request<ScheduleTemplateOut[]>(`/admin/schedule-templates?doctor_id=${doctorId}`),
+  adminCreateTemplate: (
+    doctorId: string,
+    body: {
+      service_id: string;
+      weekday: number;
+      start_time: string;
+      end_time: string;
+      valid_from: string;
+      valid_until: string | null;
+    },
+  ) =>
+    request<ScheduleTemplateOut>(`/admin/doctors/${doctorId}/schedule-templates`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  adminGenerateSlots: (templateId: string, fromDate: string, toDate: string) =>
+    request<SlotGenerationResult>(`/admin/schedule-templates/${templateId}/generate-slots`, {
+      method: "POST",
+      body: JSON.stringify({ from_date: fromDate, to_date: toDate }),
+    }),
 };
 
 /**

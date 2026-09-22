@@ -53,6 +53,7 @@ def _to_admin_out(
         doctor_name=doctor.full_name,
         branch_id=branch.id,
         branch_name=branch.name,
+        branch_timezone=branch.timezone,
         starts_at=slot.starts_at,
         ends_at=slot.ends_at,
         cancelled_by=appointment.cancelled_by,

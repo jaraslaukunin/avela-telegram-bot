@@ -324,3 +324,83 @@ async def test_branch_admin_cannot_cancel_foreign_appointment(
     )
 
     assert response.status_code == 404
+
+
+async def test_admin_scope_for_network_admin(
+    client: httpx.AsyncClient, admin_env: dict[str, Any]
+) -> None:
+    response = await client.get("/admin/scope", headers=_headers(admin_env["net_admin"]))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role"] == "network_admin"
+    assert body["can_access_all"] is False
+    assert body["network_ids"] == [str(admin_env["network_a"].id)]
+    assert str(admin_env["branch_a"].id) in body["branch_ids"]
+
+
+async def test_admin_scope_for_avela_admin(
+    client: httpx.AsyncClient, admin_env: dict[str, Any]
+) -> None:
+    response = await client.get("/admin/scope", headers=_headers(admin_env["avela"]))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role"] == "avela_admin"
+    assert body["can_access_all"] is True
+
+
+async def test_schedule_templates_are_listed_for_doctor(
+    client: httpx.AsyncClient, admin_env: dict[str, Any]
+) -> None:
+    headers = _headers(admin_env["net_admin"])
+    network_id = admin_env["network_a"].id
+    branch_id = admin_env["branch_a"].id
+
+    service_response = await client.post(
+        f"/admin/networks/{network_id}/services",
+        json={"name": "Неврология", "duration_minutes": 30},
+        headers=headers,
+    )
+    assert service_response.status_code == 201
+    service_id = service_response.json()["id"]
+
+    doctor_response = await client.post(
+        f"/admin/branches/{branch_id}/doctors",
+        json={"full_name": "Петров П.П.", "specialty": "Невролог", "service_ids": [service_id]},
+        headers=headers,
+    )
+    assert doctor_response.status_code == 201
+    doctor_id = doctor_response.json()["id"]
+    assert doctor_response.json()["is_active"] is True
+    assert doctor_response.json()["service_ids"] == [service_id]
+
+    empty = await client.get(
+        f"/admin/schedule-templates?doctor_id={doctor_id}", headers=headers
+    )
+    assert empty.status_code == 200
+    assert empty.json() == []
+
+    target = date.today() + timedelta(days=7)
+    created = await client.post(
+        f"/admin/doctors/{doctor_id}/schedule-templates",
+        json={
+            "service_id": service_id,
+            "weekday": target.weekday(),
+            "start_time": "09:00:00",
+            "end_time": "10:00:00",
+            "valid_from": target.isoformat(),
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201
+
+    listed = await client.get(
+        f"/admin/schedule-templates?doctor_id={doctor_id}", headers=headers
+    )
+    assert listed.status_code == 200
+    templates = listed.json()
+    assert len(templates) == 1
+    assert templates[0]["service_id"] == service_id
+    assert templates[0]["weekday"] == target.weekday()
+    assert templates[0]["is_active"] is True

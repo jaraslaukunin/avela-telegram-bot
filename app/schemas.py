@@ -223,6 +223,7 @@ class AdminAppointmentOut(BaseModel):
     doctor_name: str
     branch_id: uuid.UUID
     branch_name: str
+    branch_timezone: str
     starts_at: datetime
     ends_at: datetime
     cancelled_by: str | None
@@ -232,3 +233,19 @@ class AnonymizationOut(BaseModel):
     anonymized: bool
     cancelled_appointments: int
     skipped_notifications: int
+
+
+class AdminScopeOut(BaseModel):
+    """Что видит администратор: роль и разрешённые сети/филиалы."""
+
+    role: str
+    can_access_all: bool
+    network_ids: list[uuid.UUID]
+    branch_ids: list[uuid.UUID]
+
+
+class AdminDoctorOut(DoctorOut):
+    """Врач в админке: нужен признак активности и список услуг."""
+
+    is_active: bool
+    service_ids: list[uuid.UUID]
