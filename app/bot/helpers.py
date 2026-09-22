@@ -3,6 +3,7 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.bot.formatting import slot_button_label
@@ -56,6 +57,31 @@ async def get_bot_user(source: Message | CallbackQuery) -> User | None:
         else:
             await source.answer(text)
         return None
+
+
+async def show_step(
+    callback: CallbackQuery,
+    text: str,
+    keyboard: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Показывает следующий шаг В ОДНОМ сообщении, а не новым.
+
+    Чат не засоряется: шаг записи правит предыдущий. Если Telegram не даёт
+    править (сообщение слишком старое, это фото, либо текст не изменился) —
+    отправляем новое сообщение, чтобы пользователь точно увидел ответ.
+    """
+    message = callback.message
+    if isinstance(message, Message):
+        try:
+            await message.edit_text(text, reply_markup=keyboard)
+            return
+        except TelegramBadRequest:
+            await message.answer(text, reply_markup=keyboard)
+            return
+
+    # Сообщение недоступно для правки (слишком старое) — отправляем новое.
+    if message is not None and callback.bot is not None:
+        await callback.bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
 
 def parse_uuid(data: str, prefix: str) -> uuid.UUID | None:

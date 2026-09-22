@@ -11,6 +11,7 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
+    BufferedInputFile,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -18,14 +19,16 @@ from aiogram.types import (
 )
 from sqlalchemy import select
 
-from app.bot.formatting import format_booked_message
+from app.bot.formatting import format_booked_message, format_price
 from app.bot.helpers import (
     build_slots_keyboard,
     fetch_free_slots,
     get_bot_user,
     parse_uuid,
+    show_step,
 )
 from app.bot.keyboards.main_menu import get_main_menu
+from app.bot.render import render_ticket
 from app.db import get_session_factory
 from app.models.catalog import Branch, Doctor, DoctorService, Network, Service
 from app.services.booking import (
@@ -34,6 +37,7 @@ from app.services.booking import (
     book_slot,
     get_appointment_context,
 )
+from app.services.notifications import format_local_time
 from app.services.users import get_or_create_default_patient
 
 logger = logging.getLogger(__name__)
@@ -129,9 +133,7 @@ async def choose_network(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(network_id=str(network_id))
     await state.set_state(BookingStates.choosing_service)
-    await callback.message.answer(
-        "Выберите услугу:", reply_markup=_service_keyboard(services)
-    )
+    await show_step(callback, "Выберите услугу:", _service_keyboard(services))
 
 
 @router.callback_query(BookingStates.choosing_service, F.data.startswith("svc:"))
@@ -175,9 +177,7 @@ async def choose_service(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(service_id=str(service_id))
     await state.set_state(BookingStates.choosing_branch)
-    await callback.message.answer(
-        "Выберите филиал:", reply_markup=_branch_keyboard(branches)
-    )
+    await show_step(callback, "Выберите филиал:", _branch_keyboard(branches))
 
 
 @router.callback_query(BookingStates.choosing_branch, F.data.startswith("br:"))
@@ -218,9 +218,10 @@ async def choose_branch(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(branch_id=str(branch_id))
     await state.set_state(BookingStates.choosing_doctor)
-    await callback.message.answer(
+    await show_step(
+        callback,
         "Выберите врача (или доверьтесь нам — «Любой свободный врач»):",
-        reply_markup=_doctor_keyboard(doctors),
+        _doctor_keyboard(doctors),
     )
 
 
@@ -264,9 +265,10 @@ async def choose_doctor(callback: CallbackQuery, state: FSMContext) -> None:
         await state.clear()
         return
 
-    await callback.message.answer(
+    await show_step(
+        callback,
         f"Ближайшие свободные слоты (показаны первые {len(slots)}):",
-        reply_markup=build_slots_keyboard(slots, timezone_name),
+        build_slots_keyboard(slots, timezone_name),
     )
 
 
@@ -306,9 +308,10 @@ async def choose_slot(callback: CallbackQuery, state: FSMContext) -> None:
                     await callback.message.answer("Свободных слотов больше нет.")
                     await state.clear()
                 else:
-                    await callback.message.answer(
+                    await show_step(
+                        callback,
                         "Этот слот только что заняли. Выберите другой:",
-                        reply_markup=build_slots_keyboard(slots, timezone_name),
+                        build_slots_keyboard(slots, timezone_name),
                     )
             else:
                 await state.clear()
@@ -328,10 +331,23 @@ async def choose_slot(callback: CallbackQuery, state: FSMContext) -> None:
             return
         _appointment, slot, doctor, service, branch = context
         text = format_booked_message(slot, doctor, service, branch)
+        ticket = render_ticket(
+            when=format_local_time(slot.starts_at, branch.timezone),
+            service=service.name,
+            doctor=doctor.full_name,
+            branch=branch.name,
+            address=branch.address,
+            price=format_price(slot.price),
+            code=str(appointment.id)[:8].upper(),
+        )
 
     await state.clear()
     await callback.answer("Вы записаны!")
-    await callback.message.answer(text, reply_markup=get_main_menu())
+    await callback.message.answer_photo(
+        BufferedInputFile(ticket, filename="avela-ticket.png"),
+        caption=text,
+        reply_markup=get_main_menu(),
+    )
 
 
 @router.message(F.text == "❌ Отменить действие")

@@ -1,7 +1,18 @@
 """Форматирование сообщений бота — чистые функции, тестируются без БД."""
+from decimal import Decimal
+
 from app.models.catalog import Branch, Doctor, Service
 from app.models.schedule import Slot
 from app.services.notifications import format_local_time
+
+
+def format_price(price: Decimal | None) -> str:
+    """Цена для сообщений и талончика: «120 р.», без хвостовых нулей Decimal."""
+    if price is None:
+        return "не указана"
+    if price == price.to_integral_value():
+        return f"{int(price)} р."
+    return f"{price:.2f} р."
 
 
 def slot_button_label(slot: Slot, timezone_name: str) -> str:

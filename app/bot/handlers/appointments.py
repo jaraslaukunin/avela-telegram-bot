@@ -11,7 +11,13 @@ from app.bot.formatting import (
     format_appointment_card,
     format_rescheduled_message,
 )
-from app.bot.helpers import build_slots_keyboard, fetch_free_slots, get_bot_user, parse_uuid
+from app.bot.helpers import (
+    build_slots_keyboard,
+    fetch_free_slots,
+    get_bot_user,
+    parse_uuid,
+    show_step,
+)
 from app.bot.keyboards.main_menu import get_main_menu
 from app.db import get_session_factory
 from app.services.booking import (
@@ -91,7 +97,7 @@ async def cancel_appointment_callback(callback: CallbackQuery) -> None:
             return
 
     await callback.answer("Запись отменена.")
-    await callback.message.answer("✅ Запись отменена.", reply_markup=get_main_menu())
+    await show_step(callback, "✅ Запись отменена.")
 
 
 @router.callback_query(F.data.startswith("move:"))
@@ -128,9 +134,10 @@ async def start_reschedule(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(appointment_id=str(appointment_id))
     await state.set_state(RescheduleStates.choosing_new_slot)
-    await callback.message.answer(
+    await show_step(
+        callback,
         "Выберите новое время (тот же врач и услуга):",
-        reply_markup=build_slots_keyboard(slots, timezone_name),
+        build_slots_keyboard(slots, timezone_name),
     )
 
 
@@ -187,7 +194,7 @@ async def choose_new_slot(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.clear()
     await callback.answer("Запись перенесена!")
-    await callback.message.answer(text, reply_markup=get_main_menu())
+    await show_step(callback, text)
 
 
 def _appointment_keyboard(appointment_id: uuid.UUID) -> InlineKeyboardMarkup:
