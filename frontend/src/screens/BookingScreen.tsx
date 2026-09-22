@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { OfferOut, SlotOut } from "../api/types";
 import { AddPatientForm, PatientCard } from "../components/Patients";
+import { SlotCalendar } from "../components/SlotCalendar";
 import { formatDate, formatPrice, formatTime } from "../format";
 import { useT } from "../i18n/context";
 import { hapticImpact } from "../telegram";
@@ -239,22 +240,13 @@ export default function BookingScreen() {
             <p className="muted">{t("booking.noSlots")}</p>
           ) : null}
 
-          <div className="slots slots--scroll">
-            {slots.data?.map((value) => (
-              <button
-                key={value.id}
-                className={value.id === slot?.id ? "slot slot--active" : "slot"}
-                onClick={() => {
-                  setSlot(value);
-                  setStep("patient");
-                }}
-                type="button"
-              >
-                <span className="slot__date">{formatDate(value.starts_at)}</span>
-                <span className="slot__time">{formatTime(value.starts_at)}</span>
-              </button>
-            ))}
-          </div>
+          <SlotCalendar
+            slots={slots.data ?? []}
+            onPick={(value) => {
+              setSlot(value);
+              setStep("patient");
+            }}
+          />
         </>
       ) : null}
 

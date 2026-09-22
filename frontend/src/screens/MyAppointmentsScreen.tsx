@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
@@ -11,6 +12,7 @@ export default function MyAppointmentsScreen() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const state = location.state as { booked?: boolean } | null;
+  const [error, setError] = useState("");
 
   const appointments = useQuery({
     queryKey: ["appointments"],
@@ -19,7 +21,12 @@ export default function MyAppointmentsScreen() {
 
   const cancel = useMutation({
     mutationFn: (appointmentId: string) => api.cancel(appointmentId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["appointments"] }),
+    onSuccess: async () => {
+      setError("");
+      await queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    },
+    onError: (mutationError: unknown) =>
+      setError(mutationError instanceof Error ? mutationError.message : t("common.error")),
   });
 
   return (
@@ -27,6 +34,7 @@ export default function MyAppointmentsScreen() {
       <h2>{t("appointments.title")}</h2>
 
       {state?.booked ? <p className="success">{t("booking.success")}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
       {appointments.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
       {appointments.data && appointments.data.length === 0 ? (
         <p className="muted">{t("appointments.empty")}</p>
