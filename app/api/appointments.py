@@ -82,7 +82,11 @@ async def my_appointments(
         .join(Doctor, Slot.doctor_id == Doctor.id)
         .join(Branch, Doctor.branch_id == Branch.id)
         .join(Service, Slot.service_id == Service.id)
-        .where(Appointment.patient_id == current.id)
+        .where(
+            Appointment.patient_id == current.id,
+            # Перенесённые записи — история: в «Моих записях» только актуальное.
+            Appointment.status != "rescheduled",
+        )
         .order_by(Slot.starts_at.desc())
         .limit(50)
     )

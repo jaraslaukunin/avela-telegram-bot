@@ -86,7 +86,12 @@ async def list_patient_appointments(
         .join(Doctor, Slot.doctor_id == Doctor.id)
         .join(Branch, Doctor.branch_id == Branch.id)
         .join(Service, Slot.service_id == Service.id)
-        .where(Appointment.patient_id == patient_id)
+        .where(
+            Appointment.patient_id == patient_id,
+            # «Перенесённая» запись — это след старой: пациенту показываем
+            # только актуальное, иначе список выглядит как дубли.
+            Appointment.status != "rescheduled",
+        )
         .order_by((Appointment.status == "active").desc(), Slot.starts_at)
         .limit(30)
     )
@@ -244,6 +249,38 @@ async def _load_patient_profile(
     return patient
 
 
+async def _move_to_slot(
+    session: AsyncSession,
+    appointment: Appointment,
+    new_slot: Slot,
+) -> Appointment:
+    """Переносит запись на новый слот: новая активная, старая — «перенесена»."""
+    patient = await _load_patient_profile(session, appointment)
+    await _ensure_no_patient_overlap(session, patient, new_slot)
+
+    new_appointment = Appointment(
+        patient_id=appointment.patient_id,
+        slot_id=new_slot.id,
+        status="active",
+        rescheduled_from_id=appointment.id,
+        patient_full_name=appointment.patient_full_name,
+        patient_profile_id=appointment.patient_profile_id,
+    )
+    appointment.status = "rescheduled"
+    session.add(new_appointment)
+
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise SlotUnavailableError(
+            "Новый слот уже занят или пересекается с другими записями пациента"
+        ) from exc
+
+    notifications.enqueue_reschedule_notification(session, new_appointment, new_slot)
+    return new_appointment
+
+
 async def reschedule_appointment(
     session: AsyncSession,
     patient_id: uuid.UUID,
@@ -272,30 +309,43 @@ async def reschedule_appointment(
     if new_slot is None:
         raise SlotUnavailableError("Новый слот не найден")
 
-    await _ensure_no_patient_overlap(
-        session, await _load_patient_profile(session, appointment), new_slot
+    new_appointment = await _move_to_slot(session, appointment, new_slot)
+    await session.commit()
+    return new_appointment
+
+
+async def reschedule_appointment_by_admin(
+    session: AsyncSession,
+    actor: User,
+    appointment_id: uuid.UUID,
+    new_slot_id: uuid.UUID,
+) -> Appointment:
+    """Перенос администратором: без лимита 2 часов, с записью в аудит."""
+    context = await _fetch_appointment_context(session, appointment_id)
+    if context is None:
+        raise AppointmentNotFoundError("Запись не найдена")
+
+    appointment, _slot, _doctor, _service, branch = context
+    if not appointment.is_active:
+        raise BookingError("Запись уже отменена или перенесена")
+
+    new_slot = await session.get(Slot, new_slot_id)
+    if new_slot is None:
+        raise SlotUnavailableError("Новый слот не найден")
+
+    new_appointment = await _move_to_slot(session, appointment, new_slot)
+    audit.write_audit(
+        session,
+        actor,
+        "appointment.reschedule",
+        entity_type="appointment",
+        entity_id=new_appointment.id,
+        network_id=branch.network_id,
+        details={
+            "previous_appointment_id": str(appointment.id),
+            "new_slot_id": str(new_slot.id),
+        },
     )
-
-    new_appointment = Appointment(
-        patient_id=patient_id,
-        slot_id=new_slot.id,
-        status="active",
-        rescheduled_from_id=appointment.id,
-        patient_full_name=appointment.patient_full_name,
-        patient_profile_id=appointment.patient_profile_id,
-    )
-    appointment.status = "rescheduled"
-    session.add(new_appointment)
-
-    try:
-        await session.flush()
-    except IntegrityError as exc:
-        await session.rollback()
-        raise SlotUnavailableError(
-            "Новый слот уже занят или пересекается с вашими записями"
-        ) from exc
-
-    notifications.enqueue_reschedule_notification(session, new_appointment, new_slot)
     await session.commit()
     return new_appointment
 

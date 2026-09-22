@@ -15,13 +15,14 @@ from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
 from app.models.schedule import Slot
 from app.models.user import User
-from app.schemas import AdminAppointmentOut
+from app.schemas import AdminAppointmentOut, RescheduleRequest
 from app.services import permissions
 from app.services.booking import (
     AppointmentNotFoundError,
     BookingError,
     cancel_appointment_by_admin,
     get_appointment_context_for_admin,
+    reschedule_appointment_by_admin,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,3 +125,49 @@ async def cancel_appointment_admin(
         current.telegram_id,
     )
     return _to_admin_out(cancelled, slot, doctor, service, branch, patient)
+
+
+@router.post("/appointments/{appointment_id}/reschedule")
+async def reschedule_appointment_admin(
+    appointment_id: uuid.UUID,
+    payload: RescheduleRequest,
+    current: AdminUser,
+    session: DbSession,
+) -> AdminAppointmentOut:
+    """Перенос записи администратором — без лимита 2 часов, с аудитом."""
+    context = await get_appointment_context_for_admin(session, appointment_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    appointment, _slot, _doctor, _service, branch = context
+
+    allowed = await permissions.scoped_branch_ids(session, current)
+    if not permissions.can_access_branch(allowed, branch.id):
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    try:
+        moved = await reschedule_appointment_by_admin(
+            session, current, appointment.id, payload.new_slot_id
+        )
+    except AppointmentNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BookingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    logger.info(
+        "Запись перенесена администратором new_appointment_id=%s (из %s) actor=%s",
+        moved.id,
+        appointment.id,
+        current.telegram_id,
+    )
+
+    new_context = await get_appointment_context_for_admin(session, moved.id)
+    if new_context is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    new_appointment, new_slot, doctor, service, new_branch = new_context
+    patient = await session.get(User, new_appointment.patient_id)
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Пациент не найден")
+
+    return _to_admin_out(new_appointment, new_slot, doctor, service, new_branch, patient)

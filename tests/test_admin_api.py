@@ -20,6 +20,7 @@ from app.core.roles import (
 )
 from app.core.security.jwt import create_session_token
 from app.db import get_session
+from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Network, Service
 from app.models.schedule import Slot
 from app.models.user import AuditLog, BranchAdmin, User
@@ -295,6 +296,104 @@ async def test_admin_can_cancel_appointment_without_deadline(
     ).scalars().all()
     assert len(audits) == 1
     assert audits[0].actor_user_id == admin_env["br_admin"].id
+
+
+async def test_admin_can_reschedule_without_deadline(
+    client: httpx.AsyncClient, db_session: AsyncSession, admin_env: dict[str, Any]
+) -> None:
+    """Администратор переносит запись даже «за час до приёма» — лимита 2 часов нет."""
+    patient = admin_env["patient"]
+    service = Service(
+        network_id=admin_env["network_a"].id, name="Терапия", duration_minutes=30
+    )
+    doctor = Doctor(branch_id=admin_env["branch_a"].id, full_name="Петров П.П.")
+    db_session.add_all([service, doctor])
+    await db_session.flush()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    urgent_slot = Slot(
+        doctor_id=doctor.id,
+        service_id=service.id,
+        starts_at=now + timedelta(hours=1),
+        ends_at=now + timedelta(hours=1, minutes=30),
+    )
+    target_slot = Slot(
+        doctor_id=doctor.id,
+        service_id=service.id,
+        starts_at=now + timedelta(days=3),
+        ends_at=now + timedelta(days=3, minutes=30),
+    )
+    db_session.add_all([urgent_slot, target_slot])
+    await db_session.flush()
+
+    person = await get_or_create_default_patient(db_session, patient)
+    appointment = await book_slot(db_session, patient, person, urgent_slot.id)
+
+    response = await client.post(
+        f"/admin/appointments/{appointment.id}/reschedule",
+        json={"new_slot_id": str(target_slot.id)},
+        headers=_headers(admin_env["br_admin"]),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "active"
+
+    await db_session.refresh(appointment)
+    assert appointment.status == "rescheduled"
+
+    moved = (
+        await db_session.execute(
+            select(Appointment).where(Appointment.rescheduled_from_id == appointment.id)
+        )
+    ).scalars().all()
+    assert len(moved) == 1
+    assert moved[0].slot_id == target_slot.id
+
+    audits = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.action == "appointment.reschedule")
+        )
+    ).scalars().all()
+    assert len(audits) == 1
+
+
+async def test_branch_admin_cannot_reschedule_foreign_appointment(
+    client: httpx.AsyncClient, db_session: AsyncSession, admin_env: dict[str, Any]
+) -> None:
+    patient = admin_env["patient"]
+    service = Service(
+        network_id=admin_env["network_b"].id, name="Услуга B", duration_minutes=30
+    )
+    doctor = Doctor(branch_id=admin_env["branch_b"].id, full_name="Сидоров С.С.")
+    db_session.add_all([service, doctor])
+    await db_session.flush()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    slot = Slot(
+        doctor_id=doctor.id,
+        service_id=service.id,
+        starts_at=now + timedelta(days=2),
+        ends_at=now + timedelta(days=2, minutes=30),
+    )
+    target = Slot(
+        doctor_id=doctor.id,
+        service_id=service.id,
+        starts_at=now + timedelta(days=4),
+        ends_at=now + timedelta(days=4, minutes=30),
+    )
+    db_session.add_all([slot, target])
+    await db_session.flush()
+
+    person = await get_or_create_default_patient(db_session, patient)
+    appointment = await book_slot(db_session, patient, person, slot.id)
+
+    response = await client.post(
+        f"/admin/appointments/{appointment.id}/reschedule",
+        json={"new_slot_id": str(target.id)},
+        headers=_headers(admin_env["br_admin"]),
+    )
+
+    assert response.status_code == 404
 
 
 async def test_branch_admin_cannot_cancel_foreign_appointment(

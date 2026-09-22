@@ -404,6 +404,7 @@ body {
   flex-direction: column;
   gap: 12px;
   margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .landing__feature {

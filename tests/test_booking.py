@@ -21,6 +21,7 @@ from app.services.booking import (
     book_slot,
     cancel_appointment,
     list_available_slots,
+    list_patient_appointments,
     reschedule_appointment,
 )
 from tests.conftest import TEST_DATABASE_URL
@@ -197,6 +198,25 @@ async def test_reschedule_moves_to_new_slot(
     person2 = await _get_patient(db_session, booking_catalog["patient2_profile_id"])
     reopened = await book_slot(db_session, user2, person2, booking_catalog["far_slot_id"])
     assert reopened.status == "active"
+
+
+async def test_rescheduled_appointment_is_hidden_from_patient_list(
+    db_session: AsyncSession, booking_catalog: dict[str, uuid.UUID]
+) -> None:
+    """Перенесённая запись — это след старой: пациенту показываем только актуальное."""
+    user = await _get_user(db_session, booking_catalog["patient_id"])
+    person = await _get_patient(db_session, booking_catalog["patient_profile_id"])
+
+    old = await book_slot(db_session, user, person, booking_catalog["far_slot_id"])
+    await reschedule_appointment(
+        db_session, user.id, old.id, booking_catalog["other_far_slot_id"]
+    )
+
+    rows = await list_patient_appointments(db_session, user.id)
+    visible_ids = {row[0].id for row in rows}
+
+    assert old.id not in visible_ids
+    assert len(visible_ids) == 1
 
 
 async def test_cancel_nonexistent_appointment(
