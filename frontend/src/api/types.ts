@@ -85,6 +85,39 @@ export interface AnonymizationOut {
   skipped_notifications: number;
 }
 
+export interface ServiceNameOut {
+  name: string;
+  duration_minutes: number;
+  networks_count: number;
+}
+
+export interface OfferOut {
+  doctor_id: string;
+  doctor_name: string;
+  specialty: string;
+  service_id: string;
+  branch_id: string;
+  branch_name: string;
+  city: string;
+  address: string;
+  network_name: string;
+  price: string | null;
+  next_slot_at: string | null;
+  slots_count: number;
+  distance_km: number | null;
+}
+
+export interface OffersResponse {
+  service_name: string;
+  offers: OfferOut[];
+}
+
+export interface PatientOut {
+  id: string;
+  full_name: string;
+  birth_date: string | null;
+}
+
 // --- Админ-панель ---
 
 export interface AdminScopeOut {

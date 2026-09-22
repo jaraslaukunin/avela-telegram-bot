@@ -171,6 +171,8 @@ async def test_offers_have_price_and_next_slot(
     assert offers[0]["city"] == "Минск"
     assert offers[1]["doctor_name"] == "Гомельский Врач"
     assert offers[1]["price"] == "90.00"
+    # service_id нужен клиенту, чтобы открыть слоты конкретного врача.
+    assert offers[0]["service_id"] == str(ids["service_a"].id)
 
 
 async def test_offers_can_be_filtered_by_city(

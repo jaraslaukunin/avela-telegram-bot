@@ -38,3 +38,21 @@ export function formatTime(iso: string, timeZone?: string): string {
 export function isCancellable(cancellableUntil: string, now: Date = new Date()): boolean {
   return now.getTime() < new Date(cancellableUntil).getTime();
 }
+
+/**
+ * Цена приёма. Backend отдаёт numeric строкой (Decimal) — не теряем точность
+ * и не показываем «120.00000000001» после умножений.
+ */
+export function formatPrice(value: string | null | undefined): string {
+  if (!value) {
+    return "—";
+  }
+
+  const amount = Number(value);
+  if (Number.isNaN(amount)) {
+    return value;
+  }
+
+  const text = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  return `${text} р.`;
+}

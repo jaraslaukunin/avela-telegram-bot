@@ -135,6 +135,7 @@ class OfferOut(BaseModel):
     doctor_id: uuid.UUID
     doctor_name: str
     specialty: str
+    service_id: uuid.UUID
     branch_id: uuid.UUID
     branch_name: str
     city: str

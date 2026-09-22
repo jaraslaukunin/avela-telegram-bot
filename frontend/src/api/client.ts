@@ -9,7 +9,10 @@ import type {
   DoctorOut,
   LoginResponse,
   NetworkOut,
+  OffersResponse,
+  PatientOut,
   ScheduleTemplateOut,
+  ServiceNameOut,
   ServiceOut,
   SlotGenerationResult,
   SlotOut,
@@ -134,8 +137,43 @@ export function slotQuery(params: {
   return `/slots/available?${query.toString()}`;
 }
 
+export function offersQuery(params: {
+  serviceName: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+}): string {
+  const query = new URLSearchParams({ service_name: params.serviceName });
+  if (params.city) {
+    query.set("city", params.city);
+  }
+  if (params.latitude !== undefined) {
+    query.set("latitude", String(params.latitude));
+  }
+  if (params.longitude !== undefined) {
+    query.set("longitude", String(params.longitude));
+  }
+  return `/catalog/offers?${query.toString()}`;
+}
+
 export const api = {
   me: () => request<UserOut>("/auth/me"),
+
+  serviceNames: () => request<ServiceNameOut[]>("/catalog/services"),
+  cities: () => request<string[]>("/catalog/cities"),
+  offers: (params: {
+    serviceName: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+  }) => request<OffersResponse>(offersQuery(params)),
+
+  myPatients: () => request<PatientOut[]>("/patients"),
+  createPatient: (payload: { full_name: string; birth_date?: string | null }) =>
+    request<PatientOut>("/patients", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   networks: () => request<NetworkOut[]>("/networks"),
   branches: (networkId: string) => request<BranchOut[]>(`/networks/${networkId}/branches`),
@@ -146,10 +184,12 @@ export const api = {
     request<SlotOut[]>(slotQuery(params)),
 
   myAppointments: () => request<AppointmentOut[]>("/appointments"),
-  book: (slotId: string) =>
+  book: (slotId: string, patientId?: string) =>
     request<AppointmentOut>("/appointments", {
       method: "POST",
-      body: JSON.stringify({ slot_id: slotId }),
+      body: JSON.stringify(
+        patientId ? { slot_id: slotId, patient_id: patientId } : { slot_id: slotId },
+      ),
     }),
   cancel: (appointmentId: string) =>
     request<AppointmentOut>(`/appointments/${appointmentId}/cancel`, { method: "POST" }),

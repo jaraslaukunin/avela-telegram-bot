@@ -1,61 +1,95 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
-import { formatDate, formatTime } from "../format";
+import type { OfferOut, SlotOut } from "../api/types";
+import { formatDate, formatPrice, formatTime } from "../format";
 import { useT } from "../i18n/context";
 import { hapticImpact } from "../telegram";
 
+type Step = "specialist" | "offers" | "slots" | "summary";
+
+const STEP_ORDER: Step[] = ["specialist", "offers", "slots", "summary"];
+
+/**
+ * Запись на приём: специалист → филиал и врач (с ценой и ближайшим временем)
+ * → слоты → проверка записи.
+ *
+ * Бизнес-логики здесь нет: экран только собирает выбор и вызывает API.
+ */
 export default function BookingScreen() {
   const t = useT();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [networkId, setNetworkId] = useState<string | null>(null);
-  const [serviceId, setServiceId] = useState<string | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [slotId, setSlotId] = useState<string | null>(null);
-  const [error, setError] = useState<string>("");
+  const [step, setStep] = useState<Step>("specialist");
+  const [city, setCity] = useState("");
+  const [serviceName, setServiceName] = useState("");
+  const [offer, setOffer] = useState<OfferOut | null>(null);
+  const [slot, setSlot] = useState<SlotOut | null>(null);
+  const [patientId, setPatientId] = useState("");
+  const [error, setError] = useState("");
 
-  const networks = useQuery({
-    queryKey: ["networks"],
-    queryFn: api.networks,
-    staleTime: 5 * 60_000,
-  });
+  const [addingPatient, setAddingPatient] = useState(false);
+  const [patientName, setPatientName] = useState("");
+  const [patientBirth, setPatientBirth] = useState("");
+
   const services = useQuery({
-    queryKey: ["services", networkId],
-    queryFn: () => api.services(networkId ?? ""),
-    enabled: Boolean(networkId),
+    queryKey: ["service-names"],
+    queryFn: api.serviceNames,
     staleTime: 5 * 60_000,
   });
-  const branches = useQuery({
-    queryKey: ["branches", networkId],
-    queryFn: () => api.branches(networkId ?? ""),
-    enabled: Boolean(networkId),
-    staleTime: 5 * 60_000,
+
+  const cities = useQuery({
+    queryKey: ["cities"],
+    queryFn: api.cities,
+    staleTime: 10 * 60_000,
   });
-  const doctors = useQuery({
-    queryKey: ["doctors", branchId, serviceId],
-    queryFn: () => api.doctors(branchId ?? "", serviceId ?? ""),
-    enabled: Boolean(branchId && serviceId),
-    staleTime: 5 * 60_000,
+
+  const offers = useQuery({
+    queryKey: ["offers", serviceName, city],
+    queryFn: () => api.offers({ serviceName, city: city || undefined }),
+    enabled: Boolean(serviceName) && step !== "specialist",
+    staleTime: 30_000,
   });
+
   const slots = useQuery({
-    queryKey: ["slots", serviceId, branchId, doctorId],
+    queryKey: ["slots", offer?.doctor_id, offer?.service_id],
     queryFn: () =>
       api.availableSlots({
-        serviceId: serviceId ?? "",
-        branchId: branchId ?? undefined,
-        doctorId: doctorId ?? undefined,
+        serviceId: offer?.service_id ?? "",
+        doctorId: offer?.doctor_id,
       }),
-    enabled: Boolean(serviceId && branchId),
-    // Слоты меняются с каждой записью — держим их «свежими» недолго.
-    staleTime: 5_000,
+    enabled: Boolean(offer) && (step === "slots" || step === "summary"),
+    staleTime: 10_000,
+  });
+
+  const patients = useQuery({
+    queryKey: ["patients"],
+    queryFn: api.myPatients,
+    staleTime: 30_000,
+  });
+
+  const createPatient = useMutation({
+    mutationFn: () =>
+      api.createPatient({
+        full_name: patientName.trim(),
+        birth_date: patientBirth || null,
+      }),
+    onSuccess: async (created) => {
+      setAddingPatient(false);
+      setPatientName("");
+      setPatientBirth("");
+      await queryClient.invalidateQueries({ queryKey: ["patients"] });
+      setPatientId(created.id);
+    },
+    onError: (mutationError: unknown) =>
+      setError(mutationError instanceof Error ? mutationError.message : t("common.error")),
   });
 
   const book = useMutation({
-    mutationFn: (id: string) => api.book(id),
+    mutationFn: () => api.book(slot?.id ?? "", patientId || undefined),
     onSuccess: () => {
       hapticImpact();
       navigate("/appointments", { state: { booked: true } });
@@ -64,145 +98,284 @@ export default function BookingScreen() {
       setError(mutationError instanceof Error ? mutationError.message : t("common.error")),
   });
 
+  const selectedPatient = patients.data?.find((patient) => patient.id === patientId);
+
   return (
     <div className="screen">
       <h2>{t("booking.title")}</h2>
+      <Steps step={step} />
 
-      <Section title={t("booking.network")}>
-        {networks.data?.map((network) => (
-          <Choice
-            key={network.id}
-            active={network.id === networkId}
-            label={network.name}
-            onClick={() => {
-              setNetworkId(network.id);
-              setServiceId(null);
-              setBranchId(null);
-              setDoctorId(null);
-              setSlotId(null);
-            }}
-          />
-        ))}
-      </Section>
+      {step === "specialist" ? (
+        <>
+          <section className="card">
+            <h3 className="section__title">{t("booking.city")}</h3>
+            <div className="section__body">
+              <button
+                className={city === "" ? "choice choice--active" : "choice"}
+                onClick={() => setCity("")}
+                type="button"
+              >
+                {t("booking.allCities")}
+              </button>
+              {cities.data?.map((value) => (
+                <button
+                  key={value}
+                  className={value === city ? "choice choice--active" : "choice"}
+                  onClick={() => setCity(value)}
+                  type="button"
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </section>
 
-      {networkId ? (
-        <Section title={t("booking.service")}>
-          {services.data?.map((service) => (
-            <Choice
-              key={service.id}
-              active={service.id === serviceId}
-              label={service.name}
-              onClick={() => {
-                setServiceId(service.id);
-                setSlotId(null);
-              }}
-            />
-          ))}
-        </Section>
+          <section className="card">
+            <h3 className="section__title">{t("booking.specialist")}</h3>
+            {services.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+            {services.data && services.data.length === 0 ? (
+              <p className="muted">{t("admin.noServices")}</p>
+            ) : null}
+            <div className="section__body">
+              {services.data?.map((service) => (
+                <button
+                  key={service.name}
+                  className="choice choice--big"
+                  onClick={() => {
+                    setServiceName(service.name);
+                    setStep("offers");
+                  }}
+                  type="button"
+                >
+                  {service.name}
+                  <span className="choice__hint">
+                    {service.duration_minutes} {t("booking.minutes")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
       ) : null}
 
-      {networkId ? (
-        <Section title={t("booking.branch")}>
-          {branches.data?.map((branch) => (
-            <Choice
-              key={branch.id}
-              active={branch.id === branchId}
-              label={`${branch.name}${branch.city ? `, ${branch.city}` : ""}`}
-              onClick={() => {
-                setBranchId(branch.id);
-                setDoctorId(null);
-                setSlotId(null);
-              }}
-            />
+      {step === "offers" ? (
+        <>
+          <button
+            className="button button--secondary"
+            onClick={() => setStep("specialist")}
+            type="button"
+          >
+            {t("common.back")}
+          </button>
+
+          <p className="muted">
+            {serviceName}
+            {city ? ` · ${city}` : ""}
+          </p>
+
+          {offers.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+          {offers.data && offers.data.offers.length === 0 ? (
+            <p className="muted">{t("booking.offersEmpty")}</p>
+          ) : null}
+
+          {offers.data?.offers.map((value) => (
+            <article className="card" key={`${value.doctor_id}-${value.service_id}`}>
+              <h3 className="card__title">{value.doctor_name}</h3>
+              <p className="card__meta">
+                {value.specialty} · {value.network_name}
+              </p>
+              <p className="card__meta">
+                {value.branch_name}, {value.city}
+                {value.address ? `, ${value.address}` : ""}
+                {value.distance_km !== null ? ` · ${value.distance_km} ${t("booking.km")}` : ""}
+              </p>
+              <p className="card__time">
+                {t("booking.price")}: {formatPrice(value.price)}
+              </p>
+              <p className="muted">
+                {value.next_slot_at
+                  ? `${t("booking.nextSlot")}: ${formatDate(value.next_slot_at)} ${formatTime(
+                      value.next_slot_at,
+                    )} · ${value.slots_count} ${t("booking.slotsCount")}`
+                  : t("booking.noTime")}
+              </p>
+              <div className="card__actions">
+                <button
+                  className="button button--primary"
+                  disabled={value.slots_count === 0}
+                  onClick={() => {
+                    setOffer(value);
+                    setSlot(null);
+                    setStep("slots");
+                  }}
+                  type="button"
+                >
+                  {t("booking.chooseTime")}
+                </button>
+              </div>
+            </article>
           ))}
-        </Section>
+        </>
       ) : null}
 
-      {branchId && serviceId ? (
-        <Section title={t("booking.doctor")}>
-          <Choice
-            active={doctorId === null}
-            label={t("booking.anyDoctor")}
-            onClick={() => {
-              setDoctorId(null);
-              setSlotId(null);
-            }}
-          />
-          {doctors.data?.map((doctor) => (
-            <Choice
-              key={doctor.id}
-              active={doctor.id === doctorId}
-              label={`${doctor.full_name}${doctor.specialty ? ` — ${doctor.specialty}` : ""}`}
-              onClick={() => {
-                setDoctorId(doctor.id);
-                setSlotId(null);
-              }}
-            />
-          ))}
-        </Section>
-      ) : null}
+      {step === "slots" ? (
+        <>
+          <button
+            className="button button--secondary"
+            onClick={() => setStep("offers")}
+            type="button"
+          >
+            {t("common.back")}
+          </button>
 
-      {serviceId && branchId ? (
-        <Section title={t("booking.slot")}>
+          {offer ? (
+            <div className="card">
+              <h3 className="card__title">{offer.doctor_name}</h3>
+              <p className="card__meta">
+                {offer.branch_name}, {offer.city}
+              </p>
+              <p className="card__time">
+                {t("booking.price")}: {formatPrice(offer.price)}
+              </p>
+            </div>
+          ) : null}
+
           {slots.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
           {slots.data && slots.data.length === 0 ? (
             <p className="muted">{t("booking.noSlots")}</p>
           ) : null}
-          <div className="slots">
-            {slots.data?.map((slot) => (
+
+          <div className="slots slots--scroll">
+            {slots.data?.map((value) => (
               <button
-                key={slot.id}
-                className={slot.id === slotId ? "slot slot--active" : "slot"}
-                onClick={() => setSlotId(slot.id)}
+                key={value.id}
+                className={value.id === slot?.id ? "slot slot--active" : "slot"}
+                onClick={() => {
+                  setSlot(value);
+                  setStep("summary");
+                }}
                 type="button"
               >
-                <span className="slot__date">{formatDate(slot.starts_at)}</span>
-                <span className="slot__time">{formatTime(slot.starts_at)}</span>
+                <span className="slot__date">{formatDate(value.starts_at)}</span>
+                <span className="slot__time">{formatTime(value.starts_at)}</span>
               </button>
             ))}
           </div>
-        </Section>
+        </>
       ) : null}
 
-      {error ? <p className="error">{error}</p> : null}
+      {step === "summary" && offer && slot ? (
+        <>
+          <button
+            className="button button--secondary"
+            onClick={() => setStep("slots")}
+            type="button"
+          >
+            {t("common.back")}
+          </button>
 
-      <button
-        className="button button--primary button--big"
-        disabled={!slotId || book.isPending}
-        onClick={() => slotId && book.mutate(slotId)}
-        type="button"
-      >
-        {book.isPending ? t("common.loading") : t("booking.confirm")}
-      </button>
+          <section className="card">
+            <h3 className="section__title">{t("booking.summary")}</h3>
+            <p className="card__meta">
+              {t("booking.who")}: {selectedPatient?.full_name ?? t("booking.choosePatient")}
+            </p>
+            <p className="card__meta">
+              {t("booking.where")}: {offer.branch_name}, {offer.city}
+              {offer.address ? `, ${offer.address}` : ""}
+            </p>
+            <p className="card__meta">
+              {t("booking.whom")}: {offer.doctor_name} ({offer.specialty})
+            </p>
+            <p className="card__meta">
+              {t("booking.howMuch")}: {formatPrice(offer.price)}
+            </p>
+            <p className="card__time">
+              {t("booking.when")}: {formatDate(slot.starts_at)} {formatTime(slot.starts_at)}
+            </p>
+          </section>
+
+          <section className="card">
+            <h3 className="section__title">{t("booking.patient")}</h3>
+            <div className="section__body">
+              {patients.data?.map((patient) => (
+                <button
+                  key={patient.id}
+                  className={patient.id === patientId ? "choice choice--active" : "choice"}
+                  onClick={() => setPatientId(patient.id)}
+                  type="button"
+                >
+                  {patient.full_name}
+                  {patient.birth_date ? ` · ${patient.birth_date}` : ""}
+                </button>
+              ))}
+            </div>
+
+            {addingPatient ? (
+              <>
+                <input
+                  className="input"
+                  onChange={(event) => setPatientName(event.target.value)}
+                  placeholder={t("booking.patientName")}
+                  value={patientName}
+                />
+                <input
+                  className="input"
+                  onChange={(event) => setPatientBirth(event.target.value)}
+                  type="date"
+                  value={patientBirth}
+                />
+                <button
+                  className="button button--primary"
+                  disabled={!patientName.trim() || createPatient.isPending}
+                  onClick={() => createPatient.mutate()}
+                  type="button"
+                >
+                  {t("booking.save")}
+                </button>
+              </>
+            ) : (
+              <button
+                className="button button--secondary"
+                onClick={() => setAddingPatient(true)}
+                type="button"
+              >
+                {t("booking.addPatient")}
+              </button>
+            )}
+          </section>
+
+          {error ? <p className="error">{error}</p> : null}
+
+          <button
+            className="button button--primary button--big"
+            disabled={!patientId || book.isPending}
+            onClick={() => book.mutate()}
+            type="button"
+          >
+            {book.isPending ? t("common.loading") : t("booking.confirmBooking")}
+          </button>
+        </>
+      ) : null}
+
+      {error && step !== "summary" ? <p className="error">{error}</p> : null}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="section">
-      <h3 className="section__title">{title}</h3>
-      <div className="section__body">{children}</div>
-    </section>
-  );
-}
+function Steps({ step }: { step: Step }) {
+  const t = useT();
+  const activeIndex = STEP_ORDER.indexOf(step);
 
-function Choice({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
   return (
-    <button
-      className={active ? "choice choice--active" : "choice"}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
+    <div className="steps">
+      {STEP_ORDER.map((value, position) => (
+        <span
+          key={value}
+          className={position <= activeIndex ? "steps__item steps__item--active" : "steps__item"}
+        >
+          {t(`booking.step.${value}`)}
+        </span>
+      ))}
+    </div>
   );
 }

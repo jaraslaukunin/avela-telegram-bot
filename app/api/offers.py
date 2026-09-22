@@ -157,6 +157,7 @@ async def search_offers(
             Doctor.id,
             Doctor.full_name,
             Doctor.specialty,
+            DoctorService.service_id,
             Branch.id,
             Branch.name,
             Branch.city,
@@ -180,7 +181,13 @@ async def search_offers(
             Branch.is_active.is_(True),
             Network.is_active.is_(True),
         )
-        .group_by(Doctor.id, Branch.id, Network.id, DoctorService.price)
+        .group_by(
+            Doctor.id,
+            Branch.id,
+            Network.id,
+            DoctorService.service_id,
+            DoctorService.price,
+        )
         .order_by(func.min(Slot.starts_at).asc().nulls_last())
         .limit(limit)
     )
@@ -192,7 +199,7 @@ async def search_offers(
 
     offers: list[OfferOut] = []
     for row in rows:
-        branch_lat, branch_lng = row[7], row[8]
+        branch_lat, branch_lng = row[8], row[9]
         distance: float | None = None
         if latitude is not None and longitude is not None and branch_lat and branch_lng:
             distance = round(_distance_km(latitude, longitude, branch_lat, branch_lng), 1)
@@ -202,14 +209,15 @@ async def search_offers(
                 doctor_id=row[0],
                 doctor_name=row[1],
                 specialty=row[2],
-                branch_id=row[3],
-                branch_name=row[4],
-                city=row[5],
-                address=row[6],
-                network_name=row[9],
-                price=row[10],
-                next_slot_at=row[11],
-                slots_count=row[12],
+                service_id=row[3],
+                branch_id=row[4],
+                branch_name=row[5],
+                city=row[6],
+                address=row[7],
+                network_name=row[10],
+                price=row[11],
+                next_slot_at=row[12],
+                slots_count=row[13],
                 distance_km=distance,
             )
         )
