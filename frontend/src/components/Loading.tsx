@@ -1,7 +1,7 @@
 import { useT } from "../i18n/context";
 
 /** Индикатор загрузки: крутящийся логотип + подпись «Загрузка…». */
-export default function Loading() {
+export function Loading() {
   const t = useT();
 
   return (
