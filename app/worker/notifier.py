@@ -9,17 +9,25 @@ from datetime import UTC, datetime
 from typing import Protocol
 
 from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
+from aiogram.types import BufferedInputFile
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot.formatting import format_price
+from app.bot.render import render_ticket
 from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
 from app.models.notification import Notification
 from app.models.schedule import Slot
 from app.models.service import ServiceHeartbeat
 from app.models.user import User
-from app.services.notifications import REMINDER_KINDS, render_message
+from app.services.notifications import (
+    BOOKING_CREATED,
+    REMINDER_KINDS,
+    format_local_time,
+    render_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +36,10 @@ class MessageSender(Protocol):
     """Минимум, который нужен от бота (упрощает тесты)."""
 
     async def send_message(self, chat_id: int, text: str) -> object: ...
+
+    async def send_photo(
+        self, chat_id: int, photo: BufferedInputFile, caption: str
+    ) -> object: ...
 
 
 @dataclass
@@ -94,18 +106,37 @@ async def dispatch_pending_notifications(
     ).all()
 
     for notification, appointment, slot, doctor, service, branch, user in rows:
-        text = render_message(
-            notification.kind,
-            doctor_name=doctor.full_name,
-            service_name=service.name,
-            branch_name=branch.name,
-            branch_address=branch.address,
-            branch_phone=branch.phone,
-            starts_at=slot.starts_at,
-            timezone_name=branch.timezone,
-        )
         try:
-            await sender.send_message(user.telegram_id, text)
+            if notification.kind == BOOKING_CREATED:
+                # Подтверждение записи — красивым талоном-картинкой.
+                await sender.send_photo(
+                    user.telegram_id,
+                    BufferedInputFile(
+                        render_ticket(
+                            when=format_local_time(slot.starts_at, branch.timezone),
+                            service=service.name,
+                            doctor=doctor.full_name,
+                            branch=branch.name,
+                            address=branch.address,
+                            price=format_price(slot.price),
+                            code=str(appointment.id)[:8].upper(),
+                        ),
+                        filename="ticket.png",
+                    ),
+                    caption="✅ Вы записаны! Напомним за 24 часа и за 2 часа до приёма.",
+                )
+            else:
+                text = render_message(
+                    notification.kind,
+                    doctor_name=doctor.full_name,
+                    service_name=service.name,
+                    branch_name=branch.name,
+                    branch_address=branch.address,
+                    branch_phone=branch.phone,
+                    starts_at=slot.starts_at,
+                    timezone_name=branch.timezone,
+                )
+                await sender.send_message(user.telegram_id, text)
         except TelegramForbiddenError:
             notification.status = "failed"
             notification.error = "Пользователь не начал диалог с ботом или заблокировал его"

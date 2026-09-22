@@ -354,6 +354,116 @@ body {
   color: var(--muted);
 }
 
+/* Календарь врача */
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calendar__month {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.calendar__nav {
+  min-width: 48px;
+  padding: 4px 10px;
+}
+
+.calendar__weekdays,
+.calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar__weekday {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.calendar__pad {
+  display: block;
+}
+
+.calendar__day {
+  aspect-ratio: 1;
+  min-height: 38px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+}
+
+.calendar__day--free {
+  background: #15803d;
+}
+
+.calendar__day--booked {
+  background: #b42318;
+}
+
+.calendar__day--none {
+  background: #cbd5e1;
+  color: #475569;
+}
+
+.calendar__day--selected {
+  outline: 3px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.calendar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.calendar__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.calendar__dot--free {
+  background: #15803d;
+}
+
+.calendar__dot--booked {
+  background: #b42318;
+}
+
+.calendar__dot--none {
+  background: #cbd5e1;
+}
+
+textarea.input {
+  min-height: 88px;
+  resize: vertical;
+  font-family: inherit;
+}
+
 /* Пациенты */
 
 .patients {

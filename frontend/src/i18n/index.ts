@@ -86,6 +86,13 @@ const ru: Dictionary = {
   "patients.empty": "Пациентов пока нет — добавьте первого",
 
   // --- Админ-панель ---
+  "admin.stateFree": "есть свободные",
+  "admin.stateBooked": "всё занято",
+  "admin.stateNone": "нет графика / прошло",
+  "admin.message": "Написать пациенту",
+  "admin.messagePlaceholder": "Текст сообщения пациенту",
+  "admin.send": "Отправить",
+  "admin.messageSent": "Сообщение отправлено",
   "admin.tab": "Админ",
   "admin.title": "Админ-панель",
   "admin.noAccess": "Раздел только для администраторов",
@@ -234,6 +241,13 @@ const en: Dictionary = {
   "patients.empty": "No patients yet — add the first one",
 
   // --- Admin panel ---
+  "admin.stateFree": "slots available",
+  "admin.stateBooked": "fully booked",
+  "admin.stateNone": "no schedule / past",
+  "admin.message": "Message patient",
+  "admin.messagePlaceholder": "Message text for the patient",
+  "admin.send": "Send",
+  "admin.messageSent": "Message sent",
   "admin.tab": "Admin",
   "admin.title": "Admin panel",
   "admin.noAccess": "This section is for clinic administrators",
@@ -382,6 +396,13 @@ const beLatn: Dictionary = {
   "patients.empty": "Pacyjentaŭ pakul niama — dadajcie pieršaha",
 
   // --- Admin-panel ---
+  "admin.stateFree": "jość volnyja",
+  "admin.stateBooked": "usio zanata",
+  "admin.stateNone": "niama hrafika / prajšlo",
+  "admin.message": "Napisać pacyjentu",
+  "admin.messagePlaceholder": "Tekst paviedamleńnia pacyjentu",
+  "admin.send": "Adpravić",
+  "admin.messageSent": "Paviedamleńnie adpraŭlena",
   "admin.tab": "Admin",
   "admin.title": "Admin-panel",
   "admin.noAccess": "Razdziel tolki dla administrataŭ",

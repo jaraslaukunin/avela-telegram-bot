@@ -108,6 +108,16 @@ class RescheduleRequest(BaseModel):
     new_slot_id: uuid.UUID
 
 
+class AdminMessageRequest(BaseModel):
+    """Сообщение администратора пациенту."""
+
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class AdminMessageResponse(BaseModel):
+    sent: bool
+
+
 class PatientCreate(BaseModel):
     full_name: str = Field(min_length=1, max_length=300)
     birth_date: date | None = None
@@ -297,6 +307,20 @@ class AnonymizationOut(BaseModel):
     anonymized: bool
     cancelled_appointments: int
     skipped_notifications: int
+
+
+class CalendarDayOut(BaseModel):
+    date: date
+    state: str  # free — есть свободные слоты; booked — всё занято; none — графика нет
+    total_slots: int
+    free_slots: int
+
+
+class DoctorCalendarOut(BaseModel):
+    """Календарь врача: состояние каждого дня."""
+
+    doctor_id: uuid.UUID
+    days: list[CalendarDayOut]
 
 
 class AdminScopeOut(BaseModel):

@@ -1,6 +1,6 @@
 """Интеграционные тесты админ-API: роли, изоляция сетей, расписание, отмена."""
 from collections.abc import AsyncIterator
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 import httpx
@@ -129,6 +129,168 @@ async def test_network_admin_cannot_assign_network_admin(
     )
 
     assert response.status_code == 403
+
+
+async def test_doctor_calendar_states(
+    client: httpx.AsyncClient, db_session: AsyncSession, admin_env: dict[str, Any]
+) -> None:
+    """Календарь врача: free — есть свободные, booked — всё занято, none — без графика."""
+    service = Service(
+        network_id=admin_env["network_a"].id, name="Терапия", duration_minutes=30
+    )
+    doctor = Doctor(branch_id=admin_env["branch_a"].id, full_name="Календарёв К.К.")
+    db_session.add_all([service, doctor])
+    await db_session.flush()
+
+    tz = admin_env["branch_a"].tz()
+    today = datetime.now(tz).date()
+    day_free = today + timedelta(days=3)
+    day_booked = today + timedelta(days=4)
+    day_none = today + timedelta(days=5)
+
+    def slot_at(day: date, hour: int) -> Slot:
+        local = datetime.combine(day, time(hour, 0), tzinfo=tz)
+        return Slot(
+            doctor_id=doctor.id,
+            service_id=service.id,
+            starts_at=local.astimezone(UTC),
+            ends_at=(local + timedelta(minutes=30)).astimezone(UTC),
+        )
+
+    free_slot = slot_at(day_free, 9)
+    booked_slot = slot_at(day_booked, 9)
+    db_session.add_all([free_slot, booked_slot])
+    await db_session.flush()
+
+    person = await get_or_create_default_patient(db_session, admin_env["patient"])
+    await book_slot(db_session, admin_env["patient"], person, booked_slot.id)
+
+    response = await client.get(
+        f"/admin/doctors/{doctor.id}/calendar"
+        f"?start={day_free.isoformat()}&end={day_none.isoformat()}",
+        headers=_headers(admin_env["br_admin"]),
+    )
+
+    assert response.status_code == 200
+    days = {row["date"]: row for row in response.json()["days"]}
+    assert days[day_free.isoformat()]["state"] == "free"
+    assert days[day_free.isoformat()]["free_slots"] == 1
+    assert days[day_booked.isoformat()]["state"] == "booked"
+    assert days[day_booked.isoformat()]["free_slots"] == 0
+    assert days[day_none.isoformat()]["state"] == "none"
+    assert days[day_none.isoformat()]["total_slots"] == 0
+
+    # Чужой врач — 404: календарь вне зоны филиала не отдаём.
+    foreign = Doctor(branch_id=admin_env["branch_b"].id, full_name="Чужой Ч.Ч.")
+    db_session.add(foreign)
+    await db_session.commit()
+    foreign_response = await client.get(
+        f"/admin/doctors/{foreign.id}/calendar"
+        f"?start={day_free.isoformat()}&end={day_none.isoformat()}",
+        headers=_headers(admin_env["br_admin"]),
+    )
+    assert foreign_response.status_code == 404
+
+
+async def test_admin_can_message_patient(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    admin_env: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Администратор пишет пациенту — сообщение уходит от имени бота."""
+    sent_messages: list[tuple[int, str]] = []
+
+    class FakeBot:
+        async def send_message(self, chat_id: int, text: str) -> None:
+            sent_messages.append((chat_id, text))
+
+    monkeypatch.setattr("app.services.messaging.get_bot", lambda: FakeBot())
+
+    patient = admin_env["patient"]
+    service = Service(
+        network_id=admin_env["network_a"].id, name="Терапия", duration_minutes=30
+    )
+    doctor = Doctor(branch_id=admin_env["branch_a"].id, full_name="Петров П.П.")
+    db_session.add_all([service, doctor])
+    await db_session.flush()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    slot = Slot(
+        doctor_id=doctor.id,
+        service_id=service.id,
+        starts_at=now + timedelta(days=5),
+        ends_at=now + timedelta(days=5, minutes=30),
+    )
+    db_session.add(slot)
+    await db_session.flush()
+
+    person = await get_or_create_default_patient(db_session, patient)
+    appointment = await book_slot(db_session, patient, person, slot.id)
+
+    response = await client.post(
+        f"/admin/appointments/{appointment.id}/message",
+        json={"text": "Врач задерживается на 15 минут."},
+        headers=_headers(admin_env["br_admin"]),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["sent"] is True
+    assert len(sent_messages) == 1
+    assert sent_messages[0][0] == patient.telegram_id
+    assert "Врач задерживается" in sent_messages[0][1]
+
+    audits = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.action == "appointment.message")
+        )
+    ).scalars().all()
+    assert len(audits) == 1
+
+
+async def test_foreign_branch_admin_cannot_message_patient(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    admin_env: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent_messages: list[tuple[int, str]] = []
+
+    class FakeBot:
+        async def send_message(self, chat_id: int, text: str) -> None:
+            sent_messages.append((chat_id, text))
+
+    monkeypatch.setattr("app.services.messaging.get_bot", lambda: FakeBot())
+
+    patient = admin_env["patient"]
+    service = Service(
+        network_id=admin_env["network_b"].id, name="Услуга B", duration_minutes=30
+    )
+    doctor = Doctor(branch_id=admin_env["branch_b"].id, full_name="Сидоров С.С.")
+    db_session.add_all([service, doctor])
+    await db_session.flush()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    slot = Slot(
+        doctor_id=doctor.id,
+        service_id=service.id,
+        starts_at=now + timedelta(days=2),
+        ends_at=now + timedelta(days=2, minutes=30),
+    )
+    db_session.add(slot)
+    await db_session.flush()
+
+    person = await get_or_create_default_patient(db_session, patient)
+    appointment = await book_slot(db_session, patient, person, slot.id)
+
+    response = await client.post(
+        f"/admin/appointments/{appointment.id}/message",
+        json={"text": "Проверка изоляции"},
+        headers=_headers(admin_env["br_admin"]),
+    )
+
+    assert response.status_code == 404
+    assert sent_messages == []
 
 
 async def test_branch_admin_cannot_assign_network_admin(

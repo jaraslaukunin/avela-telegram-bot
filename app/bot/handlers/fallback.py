@@ -1,7 +1,7 @@
-"""Финальный рубеж: бот всегда отвечает, даже на нераспознанное.
+"""Финальный рубеж: на любое сообщение ведём в Mini App.
 
-Регистрируется последним — сюда попадают только сообщения и callback'и,
-которые не обработал ни один бизнес-хэндлер.
+Бот не ведёт диалог о записи — только уведомления. Регистрируется
+последним, чтобы ловить всё нераспознанное.
 """
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
@@ -14,11 +14,12 @@ router = Router(name=__name__)
 @router.message(F.text)
 async def unhandled_text(message: Message) -> None:
     await message.answer(
-        "Я вас не понял 🤔\nВоспользуйтесь кнопками меню ниже.",
+        "Я не отвечаю в чате — запись, перенос и отмена живут в приложении.\n"
+        "Нажмите «📱 Открыть Avela».",
         reply_markup=get_main_menu(),
     )
 
 
 @router.callback_query()
 async def unhandled_callback(callback: CallbackQuery) -> None:
-    await callback.answer("Это действие уже неактуально — начните заново из меню.")
+    await callback.answer("Откройте приложение — там всё.")

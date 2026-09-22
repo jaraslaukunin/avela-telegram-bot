@@ -85,6 +85,23 @@ export interface AnonymizationOut {
   skipped_notifications: number;
 }
 
+export interface CalendarDayOut {
+  date: string;
+  /** free — есть свободные слоты; booked — всё занято; none — графика нет/прошло */
+  state: "free" | "booked" | "none";
+  total_slots: number;
+  free_slots: number;
+}
+
+export interface DoctorCalendarOut {
+  doctor_id: string;
+  days: CalendarDayOut[];
+}
+
+export interface AdminMessageResponse {
+  sent: boolean;
+}
+
 export interface ServiceNameOut {
   name: string;
   duration_minutes: number;

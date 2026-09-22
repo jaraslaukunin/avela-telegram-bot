@@ -1,62 +1,83 @@
-"""Картинка-талончик записи.
+"""Талон предварительной записи — PNG для Telegram.
 
-Рисуем сами (Pillow), без внешних сервисов: в талончике — логотип-марка
-в геометрии logo.svg, время приёма, услуга, врач, адрес и цена.
-
-Шрифт: DejaVu из системы (в Docker он ставится пакетом fonts-dejavu-core).
-Если шрифта нет — падаем на встроенный: текст будет простым, но картинка
-всё равно отрисуется и не сломает запись.
+Рисуем на Pillow: крупная дата и время, врач, услуга, филиал, адрес, цена.
+Текст с переносами — ничего не накладывается при любых длинных значениях.
 """
-from io import BytesIO
-from pathlib import Path
+import io
+from typing import cast
 
 from PIL import Image, ImageDraw, ImageFont
 
-WIDTH = 900
-HEIGHT = 620
-
+WIDTH, HEIGHT = 1080, 1440
 IVORY = (250, 247, 240)
-CARD = (255, 255, 255)
+WHITE = (255, 255, 255)
 BLUE = (15, 107, 245)
-TEXT = (28, 28, 30)
-MUTED = (107, 114, 128)
+BLUE_SOFT = (222, 235, 255)
+INK = (28, 28, 30)
+MUTED = (118, 128, 140)
+LINE = (222, 226, 236)
 
-FONT_CANDIDATES = (
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    "/Library/Fonts/Arial Bold.ttf",
-)
+_font_cache: dict[tuple[bool, int], ImageFont.FreeTypeFont] = {}
 
 
-def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in FONT_CANDIDATES:
-        if Path(path).exists():
-            return ImageFont.truetype(path, size)
-    return ImageFont.load_default()
+def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    """DejaVu в Docker, Arial на macOS, встроенный шрифт как последний рубеж."""
+    key = (bold, size)
+    if key not in _font_cache:
+        names = (
+            "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
+            "Arial Bold.ttf" if bold else "Arial.ttf",
+        )
+        prefixes = (
+            "/usr/share/fonts/truetype/dejavu/",
+            "/System/Library/Fonts/Supplemental/",
+            "/Library/Fonts/",
+            "",
+        )
+        font: ImageFont.FreeTypeFont | None = None
+        for name in names:
+            for prefix in prefixes:
+                try:
+                    font = ImageFont.truetype(prefix + name, size)
+                    break
+                except OSError:
+                    continue
+            if font is not None:
+                break
+        if font is None:
+            font = cast(ImageFont.FreeTypeFont, ImageFont.load_default())
+        _font_cache[key] = font
+    return _font_cache[key]
 
 
-def _logo_mark(draw: ImageDraw.ImageDraw, left: int, top: int, size: int) -> None:
-    """Две точки и диагональ — как в logo.svg, только векторно и маленьким."""
-    radius = int(size * 0.13)
-    offset = int(size * 0.2)
-    width = max(3, int(size * 0.18))
-
-    x1, y1 = left + offset, top + size - offset
-    x2, y2 = left + size - offset, top + offset
-
-    draw.line((x1, y1, x2, y2), fill=BLUE, width=width)
-    for x, y in ((x1, y1), (x2, y2)):
-        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=BLUE)
-
-
-def _line(
+def _draw_wrapped(
     draw: ImageDraw.ImageDraw,
     xy: tuple[int, int],
     text: str,
-    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
-    fill: tuple[int, int, int] = TEXT,
-) -> None:
-    draw.text(xy, text, font=font, fill=fill)
+    font: ImageFont.FreeTypeFont,
+    fill: tuple[int, int, int],
+    max_width: int,
+) -> int:
+    """Рисует текст с переносами по словам; возвращает y после последней строки."""
+    x, y = xy
+    words = (text or "—").split()
+    line = ""
+    line_height = int(getattr(font, "size", 20)) + 14
+
+    for word in words:
+        candidate = f"{line} {word}".strip()
+        if draw.textlength(candidate, font=font) <= max_width:
+            line = candidate
+        else:
+            if line:
+                draw.text((x, y), line, font=font, fill=fill)
+                y += line_height
+            line = word
+
+    if line:
+        draw.text((x, y), line, font=font, fill=fill)
+        y += line_height
+    return y
 
 
 def render_ticket(
@@ -69,67 +90,65 @@ def render_ticket(
     price: str,
     code: str,
 ) -> bytes:
-    """Возвращает PNG-талончик записи."""
+    """Рисует PNG-талон. Чистая функция — тестируется без Telegram и БД."""
     image = Image.new("RGB", (WIDTH, HEIGHT), IVORY)
     draw = ImageDraw.Draw(image)
 
-    margin = 24
+    # Шапка: логотип-плашка, название, подсказка.
+    header_height = 320
+    draw.rectangle([(0, 0), (WIDTH, header_height)], fill=BLUE)
     draw.rounded_rectangle(
-        (margin, margin, WIDTH - margin, HEIGHT - margin),
-        radius=28,
-        fill=CARD,
+        [(48, 52), (176, 180)], radius=24, fill=WHITE
+    )
+    draw.text((84, 78), "A", font=_font(64, bold=True), fill=BLUE)
+    draw.text((208, 78), "Avela", font=_font(56, bold=True), fill=WHITE)
+    draw.text((208, 156), "Талон предварительной записи", font=_font(34), fill=WHITE)
+    draw.text(
+        (48, 236),
+        "Покажите его администратору на стойке",
+        font=_font(28),
+        fill=BLUE_SOFT,
     )
 
-    title_font = _font(40)
-    label_font = _font(24)
-    value_font = _font(30)
-    time_font = _font(52)
-    small_font = _font(20)
+    left = 64
+    right = WIDTH - 64
+    y = header_height + 64
 
-    # Шапка: марка + название
-    _logo_mark(draw, margin + 32, margin + 28, 52)
-    _line(draw, (margin + 100, margin + 30), "Avela", title_font, BLUE)
-    _line(
-        draw,
-        (margin + 103, margin + 78),
-        "Талон предварительной записи",
-        small_font,
-        MUTED,
-    )
+    # Дата и время — самое крупное на талоне.
+    parts = when.split(" ", 1)
+    date_text = parts[0] if parts else ""
+    time_text = parts[1] if len(parts) > 1 else ""
 
-    draw.line((margin + 32, margin + 132, WIDTH - margin - 32, margin + 132), fill=(232, 232, 232))
+    draw.text((left, y), date_text, font=_font(46, bold=True), fill=INK)
+    y += 70
+    draw.text((left, y), time_text, font=_font(104, bold=True), fill=BLUE)
+    y += 156
 
-    # Время приёма — самое важное
-    _line(draw, (margin + 32, margin + 156), when, time_font)
-    _line(draw, (margin + 32, margin + 224), "время клиники", small_font, MUTED)
+    def divider(current_y: int) -> int:
+        draw.line([(left, current_y), (right, current_y)], fill=LINE, width=4)
+        return current_y + 52
+
+    y = divider(y)
 
     rows = (
-        ("Услуга", service),
         ("Врач", doctor),
-        ("Адрес", f"{branch}, {address}" if address else branch),
+        ("Услуга", service),
+        ("Филиал", branch),
+        ("Адрес", address),
         ("Цена", price),
     )
-
-    y = margin + 272
     for label, value in rows:
-        _line(draw, (margin + 32, y), label, label_font, MUTED)
-        _line(draw, (margin + 32, y + 30), value[:52], value_font)
-        y += 76
+        draw.text((left, y), label, font=_font(30), fill=MUTED)
+        y += 48
+        y = _draw_wrapped(draw, (left, y), value, _font(42, bold=True), INK, right - left)
+        y += 44
 
-    footer_y = HEIGHT - margin - 58
-    draw.line(
-        (margin + 32, footer_y - 16, WIDTH - margin - 32, footer_y - 16),
-        fill=(232, 232, 232),
-    )
-    _line(draw, (margin + 32, footer_y), f"Код записи: {code}", small_font, MUTED)
-    _line(
-        draw,
-        (margin + 32, footer_y + 24),
-        "Отмена и перенос — не позднее чем за 2 часа до приёма",
-        small_font,
-        MUTED,
-    )
+    y = divider(y)
 
-    buffer = BytesIO()
+    draw.text((left, y), f"Номер записи: {code}", font=_font(32), fill=MUTED)
+    y += 58
+    draw.text((left, y), "Avela — запись к врачу", font=_font(28), fill=MUTED)
+
+    buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()

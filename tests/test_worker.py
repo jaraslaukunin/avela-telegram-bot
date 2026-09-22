@@ -1,6 +1,7 @@
 """Тесты worker'а уведомлений (нужна Postgres)."""
 import uuid
 
+from aiogram.types import BufferedInputFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,13 +14,19 @@ from app.worker.notifier import dispatch_pending_notifications
 
 
 class FakeSender:
-    """Заглушка бота: запоминает отправленные сообщения."""
+    """Заглушка бота: запоминает отправленные сообщения и фото."""
 
     def __init__(self) -> None:
         self.sent: list[tuple[int, str]] = []
+        self.photos: list[tuple[int, str]] = []
 
     async def send_message(self, chat_id: int, text: str) -> None:
         self.sent.append((chat_id, text))
+
+    async def send_photo(
+        self, chat_id: int, photo: BufferedInputFile, caption: str
+    ) -> None:
+        self.photos.append((chat_id, caption))
 
 
 async def _book(
@@ -53,10 +60,12 @@ async def test_immediate_notification_is_sent_once(
     sender = FakeSender()
     result = await dispatch_pending_notifications(db_session, sender)
 
-    # Слот через 7 дней: отправляется только подтверждение записи,
-    # напоминания остаются в очереди.
+    # Слот через 7 дней: отправляется только подтверждение записи —
+    # и оно уходит КАРТИНКОЙ-талоном, а не текстом.
     assert result.sent == 1
-    assert "Запись создана" in sender.sent[0][1]
+    assert sender.sent == []
+    assert len(sender.photos) == 1
+    assert "Вы записаны" in sender.photos[0][1]
 
     statuses = await _statuses(db_session, appointment.id)
     assert statuses["booking_created"] == "sent"
@@ -85,7 +94,8 @@ async def test_past_reminders_are_not_enqueued(
     result = await dispatch_pending_notifications(db_session, sender)
 
     assert result.sent == 1
-    assert len(sender.sent) == 1
+    assert len(sender.photos) == 1
+    assert sender.sent == []
 
 
 async def test_cancelled_appointment_reminders_are_skipped(
@@ -100,11 +110,10 @@ async def test_cancelled_appointment_reminders_are_skipped(
     sender = FakeSender()
     result = await dispatch_pending_notifications(db_session, sender)
 
-    # Отправляются подтверждение записи и уведомление об отмене.
+    # Отправляются подтверждение записи (фото-талон) и уведомление об отмене.
     assert result.sent == 2
-    texts = " ".join(text for _chat_id, text in sender.sent)
-    assert "Запись создана" in texts
-    assert "Запись отменена" in texts
+    assert "Запись отменена" in " ".join(text for _chat_id, text in sender.sent)
+    assert "Вы записаны" in " ".join(caption for _chat_id, caption in sender.photos)
 
     # Напоминания отменённой записи не уходят.
     statuses = await _statuses(db_session, appointment.id)

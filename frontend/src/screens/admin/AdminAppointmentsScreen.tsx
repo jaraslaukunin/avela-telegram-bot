@@ -12,6 +12,9 @@ export default function AdminAppointmentsScreen() {
   const [error, setError] = useState("");
   const [reschedulingId, setReschedulingId] = useState<string | null>(null);
   const [newSlotId, setNewSlotId] = useState("");
+  const [messagingId, setMessagingId] = useState<string | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [messageSent, setMessageSent] = useState(false);
 
   const branches = useQuery({
     queryKey: ["admin-branches"],
@@ -66,6 +69,18 @@ export default function AdminAppointmentsScreen() {
       setError(mutationError instanceof Error ? mutationError.message : t("common.error")),
   });
 
+  const sendMessage = useMutation({
+    mutationFn: () => api.adminMessageAppointment(messagingId ?? "", messageText.trim()),
+    onSuccess: () => {
+      setError("");
+      setMessagingId(null);
+      setMessageText("");
+      setMessageSent(true);
+    },
+    onError: (mutationError: unknown) =>
+      setError(mutationError instanceof Error ? mutationError.message : t("common.error")),
+  });
+
   const multipleBranches = (branches.data?.length ?? 0) > 1;
 
   return (
@@ -102,6 +117,7 @@ export default function AdminAppointmentsScreen() {
         <p className="muted">{t("admin.noAppointments")}</p>
       ) : null}
       {error ? <p className="error">{error}</p> : null}
+      {messageSent ? <p className="success">{t("admin.messageSent")}</p> : null}
 
       {appointments.data?.map((appointment) => (
         <article className="card" key={appointment.id}>
@@ -143,7 +159,37 @@ export default function AdminAppointmentsScreen() {
                 >
                   {t("admin.reschedule")}
                 </button>
+                <button
+                  className="button button--secondary"
+                  onClick={() => {
+                    setMessagingId(messagingId === appointment.id ? null : appointment.id);
+                    setMessageText("");
+                  }}
+                  type="button"
+                >
+                  {t("admin.message")}
+                </button>
               </div>
+
+              {messagingId === appointment.id ? (
+                <>
+                  <textarea
+                    className="input"
+                    onChange={(event) => setMessageText(event.target.value)}
+                    placeholder={t("admin.messagePlaceholder")}
+                    rows={3}
+                    value={messageText}
+                  />
+                  <button
+                    className="button button--primary"
+                    disabled={!messageText.trim() || sendMessage.isPending}
+                    onClick={() => sendMessage.mutate()}
+                    type="button"
+                  >
+                    {sendMessage.isPending ? t("common.loading") : t("admin.send")}
+                  </button>
+                </>
+              ) : null}
 
               {reschedulingId === appointment.id ? (
                 <>

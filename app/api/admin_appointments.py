@@ -15,7 +15,12 @@ from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
 from app.models.schedule import Slot
 from app.models.user import User
-from app.schemas import AdminAppointmentOut, RescheduleRequest
+from app.schemas import (
+    AdminAppointmentOut,
+    AdminMessageRequest,
+    AdminMessageResponse,
+    RescheduleRequest,
+)
 from app.services import permissions
 from app.services.booking import (
     AppointmentNotFoundError,
@@ -23,6 +28,10 @@ from app.services.booking import (
     cancel_appointment_by_admin,
     get_appointment_context_for_admin,
     reschedule_appointment_by_admin,
+)
+from app.services.messaging import (
+    PatientUnreachableError,
+    send_message_to_appointment_patient,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,3 +182,35 @@ async def reschedule_appointment_admin(
         raise HTTPException(status_code=404, detail="Пациент не найден")
 
     return _to_admin_out(new_appointment, new_slot, doctor, service, new_branch, patient)
+
+
+@router.post("/appointments/{appointment_id}/message")
+async def message_appointment_patient(
+    appointment_id: uuid.UUID,
+    payload: AdminMessageRequest,
+    current: AdminUser,
+    session: DbSession,
+) -> AdminMessageResponse:
+    """Сообщение пациенту от имени бота — например, «врач задерживается».
+
+    Права проверяются здесь (зона филиала), отправка и аудит — в сервисе.
+    """
+    context = await get_appointment_context_for_admin(session, appointment_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    _appointment, _slot, _doctor, _service, branch = context
+    allowed = await permissions.scoped_branch_ids(session, current)
+    if not permissions.can_access_branch(allowed, branch.id):
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    try:
+        await send_message_to_appointment_patient(
+            session, current, appointment_id, payload.text
+        )
+    except AppointmentNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PatientUnreachableError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return AdminMessageResponse(sent=True)

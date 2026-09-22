@@ -5,6 +5,7 @@
 import asyncio
 import logging
 from datetime import UTC
+from typing import cast
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
@@ -14,7 +15,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.config import get_settings
 from app.core.logging import configure_logging
 from app.db import get_session_factory
-from app.worker.notifier import dispatch_pending_notifications, write_heartbeat
+from app.worker.notifier import (
+    MessageSender,
+    dispatch_pending_notifications,
+    write_heartbeat,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +28,7 @@ async def run_once(bot: Bot) -> None:
     factory = get_session_factory()
     async with factory() as session:
         await write_heartbeat(session)
-        result = await dispatch_pending_notifications(session, bot)
+        result = await dispatch_pending_notifications(session, cast(MessageSender, bot))
     if result.sent or result.skipped or result.failed:
         logger.info(
             "Уведомления: отправлено=%s, пропущено=%s, ошибок=%s",

@@ -5,10 +5,11 @@
 существование чужих данных.
 """
 import uuid
+from datetime import date, datetime, time, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,8 +24,9 @@ from app.core.roles import (
     ROLE_PATIENT,
 )
 from app.db import get_session
+from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, DoctorService, Network, Service
-from app.models.schedule import ScheduleTemplate
+from app.models.schedule import ScheduleTemplate, Slot
 from app.models.user import BranchAdmin, User
 from app.schemas import (
     AdminDoctorOut,
@@ -33,6 +35,8 @@ from app.schemas import (
     BranchCreate,
     BranchOut,
     BranchUpdate,
+    CalendarDayOut,
+    DoctorCalendarOut,
     DoctorCreate,
     DoctorServicesUpdate,
     DoctorUpdate,
@@ -582,6 +586,68 @@ async def set_doctor_services(
 
 
 # --- Расписание и слоты ---
+
+
+@router.get("/doctors/{doctor_id}/calendar")
+async def doctor_calendar(
+    doctor_id: uuid.UUID,
+    current: AdminUser,
+    session: DbSession,
+    start: date = Query(...),
+    end: date = Query(...),
+) -> DoctorCalendarOut:
+    """Календарь врача: зелёный — есть свободные, красный — всё занято,
+    серый — график не сформирован или дата уже прошла."""
+    doctor = await _doctor_or_404(session, current, doctor_id)
+    branch = await _branch_or_404(session, current, doctor.branch_id)
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="Дата конца раньше даты начала")
+    if (end - start).days > 62:
+        raise HTTPException(status_code=400, detail="Диапазон не больше 62 дней")
+
+    # Дни считаем в часовом поясе филиала: слоты хранятся в UTC.
+    start_dt = datetime.combine(start, time.min, tzinfo=branch.tz())
+    end_dt = datetime.combine(end + timedelta(days=1), time.min, tzinfo=branch.tz())
+
+    busy = exists().where(
+        and_(Appointment.slot_id == Slot.id, Appointment.status == "active")
+    )
+    rows = (
+        await session.execute(
+            select(
+                func.date(func.timezone(branch.timezone, Slot.starts_at)).label("day"),
+                func.count(Slot.id).label("total"),
+                func.count(Slot.id).filter(~busy).label("free"),
+            )
+            .where(
+                Slot.doctor_id == doctor.id,
+                Slot.starts_at >= start_dt,
+                Slot.starts_at < end_dt,
+            )
+            .group_by("day")
+        )
+    ).all()
+
+    stats: dict[date, tuple[int, int]] = {row[0]: (row[1], row[2]) for row in rows}
+    today = datetime.now(branch.tz()).date()
+
+    days: list[CalendarDayOut] = []
+    cursor = start
+    while cursor <= end:
+        total, free = stats.get(cursor, (0, 0))
+        if cursor < today or total == 0:
+            state = "none"
+        elif free > 0:
+            state = "free"
+        else:
+            state = "booked"
+        days.append(
+            CalendarDayOut(date=cursor, state=state, total_slots=total, free_slots=free)
+        )
+        cursor += timedelta(days=1)
+
+    return DoctorCalendarOut(doctor_id=doctor.id, days=days)
 
 
 @router.post("/doctors/{doctor_id}/schedule-templates", status_code=201)

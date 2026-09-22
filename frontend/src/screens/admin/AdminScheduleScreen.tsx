@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { api } from "../../api/client";
+import { DoctorCalendar } from "../../components/DoctorCalendar";
 import { useT } from "../../i18n/context";
 import { useAdminScope } from "./useAdminScope";
 
@@ -150,6 +151,8 @@ export default function AdminScheduleScreen() {
           </div>
         </section>
       ) : null}
+
+      {doctorId ? <DoctorCalendar doctorId={doctorId} /> : null}
 
       {error ? <p className="error">{error}</p> : null}
       {message ? <p className="success">{message}</p> : null}

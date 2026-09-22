@@ -2,10 +2,12 @@ import { getInitData } from "../telegram";
 import type {
   AdminAppointmentOut,
   AdminDoctorOut,
+  AdminMessageResponse,
   AdminScopeOut,
   AnonymizationOut,
   AppointmentOut,
   BranchOut,
+  DoctorCalendarOut,
   DoctorOut,
   LoginResponse,
   NetworkOut,
@@ -226,6 +228,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ new_slot_id: newSlotId }),
     }),
+  adminMessageAppointment: (appointmentId: string, text: string) =>
+    request<AdminMessageResponse>(`/admin/appointments/${appointmentId}/message`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  adminDoctorCalendar: (doctorId: string, start: string, end: string) =>
+    request<DoctorCalendarOut>(
+      `/admin/doctors/${doctorId}/calendar?start=${start}&end=${end}`,
+    ),
 
   adminDoctors: (branchId: string) =>
     request<AdminDoctorOut[]>(`/admin/branches/${branchId}/doctors`),
