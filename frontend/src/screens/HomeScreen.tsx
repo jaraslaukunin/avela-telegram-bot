@@ -8,7 +8,7 @@ export default function HomeScreen() {
   return (
     <div className="screen">
       <header className="hero">
-        <img alt="Avela" className="logo-img" src="/logo.svg" />
+        <img alt="Avela" className="logo-img" src="/logo.svg?v=1" />
         <h1 className="logo">Avela</h1>
         <p className="hero__tagline">{t("app.tagline")}</p>
       </header>

@@ -121,6 +121,36 @@ class PatientOut(BaseModel):
     birth_date: date | None
 
 
+class ServiceNameOut(BaseModel):
+    """Специалист/услуга для шага поиска (без привязки к сети)."""
+
+    name: str
+    duration_minutes: int
+    networks_count: int
+
+
+class OfferOut(BaseModel):
+    """Кто, где, за сколько и когда ближайшее свободное время."""
+
+    doctor_id: uuid.UUID
+    doctor_name: str
+    specialty: str
+    branch_id: uuid.UUID
+    branch_name: str
+    city: str
+    address: str
+    network_name: str
+    price: Decimal | None
+    next_slot_at: datetime | None
+    slots_count: int
+    distance_km: float | None
+
+
+class OffersResponse(BaseModel):
+    service_name: str
+    offers: list[OfferOut]
+
+
 # --- Административные схемы ---
 
 

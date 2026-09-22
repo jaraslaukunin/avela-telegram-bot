@@ -18,6 +18,7 @@ from app.api.appointments import router as appointments_router
 from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
+from app.api.offers import router as offers_router
 from app.api.patients import router as patients_router
 from app.api.privacy import router as privacy_router
 from app.bot.errors import handle_bot_error
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(auth_router)
     application.include_router(catalog_router)
+    application.include_router(offers_router)
     application.include_router(appointments_router)
     application.include_router(admin_catalog_router)
     application.include_router(admin_appointments_router)

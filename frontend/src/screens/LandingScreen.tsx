@@ -13,7 +13,7 @@ export default function LandingScreen() {
   return (
     <div className="landing">
       <header className="landing__hero">
-        <img alt="Avela" className="logo-img" src="/logo.svg" />
+        <img alt="Avela" className="logo-img" src="/logo.svg?v=1" />
         <h1 className="landing__logo">Avela</h1>
         <p className="landing__tagline">{t("landing.tagline")}</p>
         <p className="muted">{t("landing.subtitle")}</p>
