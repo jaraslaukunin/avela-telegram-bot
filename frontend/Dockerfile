@@ -8,6 +8,7 @@ RUN npm install --no-audit --no-fund
 
 COPY tsconfig.json vite.config.ts index.html ./
 COPY src ./src
+COPY public ./public
 
 ARG VITE_API_URL=http://127.0.0.1:8000
 ENV VITE_API_URL=$VITE_API_URL
