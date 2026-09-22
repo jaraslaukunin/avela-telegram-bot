@@ -1,11 +1,12 @@
+import { BellIcon, PinIcon, SearchIcon } from "../components/Icon";
 import { useT } from "../i18n/context";
 
 /**
- * Лендинг для тех, кто открыл avela.jaraslau.dev не из Telegram.
+ * Одностраничный лендинг для посетителей вне Telegram.
  *
  * Mini App работает только внутри клиента Telegram (там передаётся initData),
- * поэтому для случайного посетителя из браузера показываем аккуратную
- * страницу-визитку вместо «Откройте через Telegram».
+ * поэтому случайный посетитель из браузера видит визитку с тремя
+ * преимуществами и кнопкой «Открыть в Telegram».
  */
 export default function LandingScreen() {
   const t = useT();
@@ -17,12 +18,47 @@ export default function LandingScreen() {
         <h1 className="landing__logo">Avela</h1>
         <p className="landing__tagline">{t("landing.tagline")}</p>
         <p className="muted">{t("landing.subtitle")}</p>
-        <a className="button button--primary button--big landing__cta" href="https://t.me/avela_med_bot">
+        <a
+          className="button button--primary button--big landing__cta"
+          href="https://t.me/avela_med_bot"
+        >
           {t("landing.openInTelegram")}
         </a>
       </header>
 
-      <section className="section">
+      <section className="landing__features">
+        <article className="card landing__feature">
+          <span className="landing__feature-icon">
+            <SearchIcon />
+          </span>
+          <div>
+            <h3>{t("landing.feature1Title")}</h3>
+            <p className="muted">{t("landing.feature1Text")}</p>
+          </div>
+        </article>
+
+        <article className="card landing__feature">
+          <span className="landing__feature-icon">
+            <PinIcon />
+          </span>
+          <div>
+            <h3>{t("landing.feature2Title")}</h3>
+            <p className="muted">{t("landing.feature2Text")}</p>
+          </div>
+        </article>
+
+        <article className="card landing__feature">
+          <span className="landing__feature-icon">
+            <BellIcon />
+          </span>
+          <div>
+            <h3>{t("landing.feature3Title")}</h3>
+            <p className="muted">{t("landing.feature3Text")}</p>
+          </div>
+        </article>
+      </section>
+
+      <section className="card">
         <h2 className="section__title">{t("landing.howTitle")}</h2>
         <ol className="landing__steps">
           <li>{t("landing.how1")}</li>

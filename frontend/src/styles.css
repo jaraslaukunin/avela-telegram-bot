@@ -275,13 +275,20 @@ body {
   flex: 1;
   min-height: var(--touch);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   color: var(--muted);
   text-decoration: none;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.2;
   text-align: center;
-  padding: 4px;
+  padding: 6px 4px;
+}
+
+.tabbar__item--active {
+  color: var(--blue);
 }
 
 /* Поля форм в админке */
@@ -307,52 +314,90 @@ body {
   color: var(--muted);
 }
 
-/* Лендинг для посетителей вне Telegram */
+/* --- Лендинг --- */
 
 .landing {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 520px;
-  margin: 0 auto;
-  padding-top: 24px;
+  padding-top: 8px;
 }
 
 .landing__hero {
+  position: relative;
   text-align: center;
-  padding: 24px 0 8px;
+  padding: 20px 0 12px;
+  overflow: hidden;
+}
+
+.landing__hero::before {
+  content: "";
+  position: absolute;
+  inset: -30px -40px auto -40px;
+  height: 240px;
+  background:
+    radial-gradient(circle at 22% 35%, rgba(15, 107, 245, 0.12), transparent 55%),
+    radial-gradient(circle at 78% 22%, rgba(15, 107, 245, 0.09), transparent 50%);
+  pointer-events: none;
 }
 
 .landing__logo {
-  margin: 0;
-  font-size: 48px;
-  letter-spacing: -0.03em;
+  position: relative;
+  margin: 0 0 6px;
+  font-size: 42px;
+  letter-spacing: -0.02em;
   color: var(--blue);
 }
 
 .landing__tagline {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 8px 0 4px;
+  position: relative;
+  margin: 0 0 8px;
+  font-size: 21px;
+  font-weight: 700;
 }
 
 .landing__cta {
-  margin-top: 20px;
+  position: relative;
   max-width: 320px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 18px auto 0;
+}
+
+.landing__features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.landing__feature {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.landing__feature h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.landing__feature p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.landing__feature-icon {
+  flex: 0 0 auto;
+  color: var(--blue);
+  margin-top: 3px;
 }
 
 .landing__steps {
-  margin: 0;
-  padding-left: 22px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 15px;
+  margin: 0;
+  padding-left: 20px;
 }
 
 .landing__note {
+  margin-top: 20px;
   text-align: center;
   font-size: 13px;
 }

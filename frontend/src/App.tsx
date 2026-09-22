@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes } from "react-router-dom";
 
 import { ApiError, NotInTelegramError, restoreOrLogin } from "./api/client";
+import { CalendarIcon, HomeIcon, SettingsIcon, UserIcon } from "./components/Icon";
 import { detectLocale, translate, type Locale } from "./i18n";
 import { LocaleProvider, useT } from "./i18n/context";
 import AdminAppointmentsScreen from "./screens/admin/AdminAppointmentsScreen";
@@ -137,24 +138,32 @@ export default function App() {
         </main>
 
         <nav className="tabbar">
-          <Link className="tabbar__item" to="/">
-            {translate(locale, "app.title")}
-          </Link>
-          <Link className="tabbar__item" to="/appointments">
-            {translate(locale, "appointments.title")}
-          </Link>
-          <Link className="tabbar__item" to="/profile">
-            {translate(locale, "profile.title")}
-          </Link>
+          <NavLink className={tabClass} end to="/">
+            <HomeIcon />
+            <span>{translate(locale, "app.title")}</span>
+          </NavLink>
+          <NavLink className={tabClass} to="/appointments">
+            <CalendarIcon />
+            <span>{translate(locale, "appointments.title")}</span>
+          </NavLink>
+          <NavLink className={tabClass} to="/profile">
+            <UserIcon />
+            <span>{translate(locale, "profile.title")}</span>
+          </NavLink>
           {isAdmin ? (
-            <Link className="tabbar__item" to="/admin">
-              {translate(locale, "admin.tab")}
-            </Link>
+            <NavLink className={tabClass} to="/admin">
+              <SettingsIcon />
+              <span>{translate(locale, "admin.tab")}</span>
+            </NavLink>
           ) : null}
         </nav>
       </div>
     </LocaleProvider>
   );
+}
+
+function tabClass({ isActive }: { isActive: boolean }): string {
+  return isActive ? "tabbar__item tabbar__item--active" : "tabbar__item";
 }
 
 function NoAccessScreen() {
