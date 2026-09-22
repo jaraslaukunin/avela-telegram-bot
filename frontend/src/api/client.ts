@@ -219,6 +219,11 @@ export const api = {
     request<AdminAppointmentOut>(`/admin/appointments/${appointmentId}/cancel`, {
       method: "POST",
     }),
+  adminRescheduleAppointment: (appointmentId: string, newSlotId: string) =>
+    request<AdminAppointmentOut>(`/admin/appointments/${appointmentId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify({ new_slot_id: newSlotId }),
+    }),
 
   adminDoctors: (branchId: string) =>
     request<AdminDoctorOut[]>(`/admin/branches/${branchId}/doctors`),

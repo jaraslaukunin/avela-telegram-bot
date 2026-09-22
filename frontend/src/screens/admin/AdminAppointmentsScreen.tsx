@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../api/client";
-import { formatDateTime } from "../../format";
+import { formatDate, formatDateTime, formatTime } from "../../format";
 import { useT } from "../../i18n/context";
 
 export default function AdminAppointmentsScreen() {
@@ -10,6 +10,8 @@ export default function AdminAppointmentsScreen() {
   const queryClient = useQueryClient();
   const [branchId, setBranchId] = useState("");
   const [error, setError] = useState("");
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [newSlotId, setNewSlotId] = useState("");
 
   const branches = useQuery({
     queryKey: ["admin-branches"],
@@ -27,6 +29,37 @@ export default function AdminAppointmentsScreen() {
     mutationFn: (appointmentId: string) => api.adminCancelAppointment(appointmentId),
     onSuccess: async () => {
       setError("");
+      await queryClient.invalidateQueries({ queryKey: ["admin-appointments"] });
+    },
+    onError: (mutationError: unknown) =>
+      setError(mutationError instanceof Error ? mutationError.message : t("common.error")),
+  });
+
+  const reschedulingAppointment = appointments.data?.find(
+    (appointment) => appointment.id === reschedulingId,
+  );
+
+  const rescheduleSlots = useQuery({
+    queryKey: [
+      "admin-reschedule-slots",
+      reschedulingAppointment?.doctor_id,
+      reschedulingAppointment?.service_id,
+    ],
+    queryFn: () =>
+      api.availableSlots({
+        serviceId: reschedulingAppointment?.service_id ?? "",
+        doctorId: reschedulingAppointment?.doctor_id,
+      }),
+    enabled: Boolean(reschedulingAppointment),
+    staleTime: 10_000,
+  });
+
+  const reschedule = useMutation({
+    mutationFn: () => api.adminRescheduleAppointment(reschedulingId ?? "", newSlotId),
+    onSuccess: async () => {
+      setError("");
+      setReschedulingId(null);
+      setNewSlotId("");
       await queryClient.invalidateQueries({ queryKey: ["admin-appointments"] });
     },
     onError: (mutationError: unknown) =>
@@ -88,16 +121,60 @@ export default function AdminAppointmentsScreen() {
           ) : null}
 
           {appointment.status === "active" ? (
-            <div className="card__actions">
-              <button
-                className="button button--danger"
-                disabled={cancel.isPending}
-                onClick={() => cancel.mutate(appointment.id)}
-                type="button"
-              >
-                {t("admin.cancelAppointment")}
-              </button>
-            </div>
+            <>
+              <div className="card__actions">
+                <button
+                  className="button button--danger"
+                  disabled={cancel.isPending}
+                  onClick={() => cancel.mutate(appointment.id)}
+                  type="button"
+                >
+                  {t("admin.cancelAppointment")}
+                </button>
+                <button
+                  className="button button--secondary"
+                  onClick={() => {
+                    setReschedulingId(
+                      reschedulingId === appointment.id ? null : appointment.id,
+                    );
+                    setNewSlotId("");
+                  }}
+                  type="button"
+                >
+                  {t("admin.reschedule")}
+                </button>
+              </div>
+
+              {reschedulingId === appointment.id ? (
+                <>
+                  <p className="muted">{t("admin.chooseNewSlot")}</p>
+                  <div className="slots slots--scroll">
+                    {rescheduleSlots.data?.map((value) => (
+                      <button
+                        key={value.id}
+                        className={value.id === newSlotId ? "slot slot--active" : "slot"}
+                        onClick={() => setNewSlotId(value.id)}
+                        type="button"
+                      >
+                        <span className="slot__date">{formatDate(value.starts_at)}</span>
+                        <span className="slot__time">{formatTime(value.starts_at)}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {rescheduleSlots.data && rescheduleSlots.data.length === 0 ? (
+                    <p className="muted">{t("booking.noSlots")}</p>
+                  ) : null}
+                  <button
+                    className="button button--primary"
+                    disabled={!newSlotId || reschedule.isPending}
+                    onClick={() => reschedule.mutate()}
+                    type="button"
+                  >
+                    {reschedule.isPending ? t("common.loading") : t("admin.confirmReschedule")}
+                  </button>
+                </>
+              ) : null}
+            </>
           ) : null}
         </article>
       ))}

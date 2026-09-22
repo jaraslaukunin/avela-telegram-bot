@@ -36,6 +36,7 @@ from app.schemas import (
     DoctorCreate,
     DoctorServicesUpdate,
     DoctorUpdate,
+    NetworkAdminAssign,
     NetworkCreate,
     NetworkOut,
     NetworkUpdate,
@@ -209,6 +210,48 @@ async def update_network(
     )
     await session.commit()
     return NetworkOut.model_validate(network)
+
+
+@router.post("/networks/{network_id}/admins", status_code=204)
+async def assign_network_admin(
+    network_id: uuid.UUID,
+    payload: NetworkAdminAssign,
+    current: AvelaAdminUser,
+    session: DbSession,
+) -> Response:
+    """Назначить администратора сети.
+
+    Только администратор Avela: сетевой админ управляет контентом своей
+    сети, но не может делегировать свой уровень дальше — иначе права
+    расползлись бы по иерархии без контроля владельца платформы.
+    """
+    network = await session.get(Network, network_id)
+    if network is None:
+        raise HTTPException(status_code=404, detail="Сеть не найдена")
+
+    user = await session.scalar(
+        select(User).where(User.telegram_id == payload.telegram_id)
+    )
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Пользователь не найден: ему нужно сначала войти в бота",
+        )
+
+    user.role = ROLE_NETWORK_ADMIN
+    user.network_id = network.id
+
+    audit.write_audit(
+        session,
+        current,
+        "network.admin.assign",
+        entity_type="network",
+        entity_id=network.id,
+        network_id=network.id,
+        details={"telegram_id": payload.telegram_id},
+    )
+    await session.commit()
+    return Response(status_code=204)
 
 
 # --- Филиалы ---

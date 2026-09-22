@@ -92,6 +92,57 @@ async def test_patient_forbidden(client: httpx.AsyncClient, admin_env: dict[str,
     assert response.status_code == 403
 
 
+async def test_avela_admin_assigns_network_admin(
+    client: httpx.AsyncClient, db_session: AsyncSession, admin_env: dict[str, Any]
+) -> None:
+    """Назначить администратора сети может только администратор Avela."""
+    target = admin_env["patient"]
+
+    response = await client.post(
+        f"/admin/networks/{admin_env['network_a'].id}/admins",
+        json={"telegram_id": target.telegram_id},
+        headers=_headers(admin_env["avela"]),
+    )
+
+    assert response.status_code == 204
+
+    await db_session.refresh(target)
+    assert target.role == "network_admin"
+    assert target.network_id == admin_env["network_a"].id
+
+    audits = (
+        await db_session.execute(
+            select(AuditLog).where(AuditLog.action == "network.admin.assign")
+        )
+    ).scalars().all()
+    assert len(audits) == 1
+
+
+async def test_network_admin_cannot_assign_network_admin(
+    client: httpx.AsyncClient, admin_env: dict[str, Any]
+) -> None:
+    """Сетевой админ не может делегировать свой уровень — это право владельца."""
+    response = await client.post(
+        f"/admin/networks/{admin_env['network_a'].id}/admins",
+        json={"telegram_id": admin_env["patient"].telegram_id},
+        headers=_headers(admin_env["net_admin"]),
+    )
+
+    assert response.status_code == 403
+
+
+async def test_branch_admin_cannot_assign_network_admin(
+    client: httpx.AsyncClient, admin_env: dict[str, Any]
+) -> None:
+    response = await client.post(
+        f"/admin/networks/{admin_env['network_a'].id}/admins",
+        json={"telegram_id": admin_env["patient"].telegram_id},
+        headers=_headers(admin_env["br_admin"]),
+    )
+
+    assert response.status_code == 403
+
+
 async def test_network_admin_sees_only_own_network(
     client: httpx.AsyncClient, admin_env: dict[str, Any]
 ) -> None:

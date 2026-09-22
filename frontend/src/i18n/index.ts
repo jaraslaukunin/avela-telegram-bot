@@ -78,6 +78,9 @@ const ru: Dictionary = {
   "admin.noAccessHint":
     "Если вы администратор клиники — попросите администратора сети назначить вас.",
   "admin.appointments": "Записи",
+  "admin.reschedule": "Перенести",
+  "admin.chooseNewSlot": "Новое время:",
+  "admin.confirmReschedule": "Перенести запись",
   "admin.doctors": "Врачи",
   "admin.schedule": "Расписание",
   "admin.chooseBranch": "Выберите филиал",
@@ -209,6 +212,9 @@ const en: Dictionary = {
   "admin.noAccessHint":
     "If you are a clinic administrator, ask your network administrator to grant access.",
   "admin.appointments": "Appointments",
+  "admin.reschedule": "Reschedule",
+  "admin.chooseNewSlot": "New time:",
+  "admin.confirmReschedule": "Move appointment",
   "admin.doctors": "Doctors",
   "admin.schedule": "Schedule",
   "admin.chooseBranch": "Choose a branch",
@@ -340,6 +346,9 @@ const beLatn: Dictionary = {
   "admin.noAccessHint":
     "Kali vy administrator kliniki — paprasiecie administratora sietki pryznačyć vas.",
   "admin.appointments": "Zapisy",
+  "admin.reschedule": "Pieraniasci",
+  "admin.chooseNewSlot": "Novy čas:",
+  "admin.confirmReschedule": "Pieraniasci zapis",
   "admin.doctors": "Ŭračy",
   "admin.schedule": "Raspis",
   "admin.chooseBranch": "Abarocie filijal",

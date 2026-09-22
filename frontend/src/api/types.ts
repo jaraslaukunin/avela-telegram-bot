@@ -136,6 +136,8 @@ export interface AdminAppointmentOut {
   branch_id: string;
   branch_name: string;
   branch_timezone: string;
+  doctor_id: string;
+  service_id: string;
   starts_at: string;
   ends_at: string;
   cancelled_by: string | null;

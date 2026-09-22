@@ -230,6 +230,12 @@ class BranchAdminAssign(BaseModel):
     telegram_id: int
 
 
+class NetworkAdminAssign(BaseModel):
+    """Назначение администратора сети (только администратор Avela)."""
+
+    telegram_id: int
+
+
 class ScheduleTemplateCreate(BaseModel):
     service_id: uuid.UUID
     weekday: int = Field(ge=0, le=6)
@@ -280,6 +286,8 @@ class AdminAppointmentOut(BaseModel):
     branch_id: uuid.UUID
     branch_name: str
     branch_timezone: str
+    doctor_id: uuid.UUID
+    service_id: uuid.UUID
     starts_at: datetime
     ends_at: datetime
     cancelled_by: str | None
