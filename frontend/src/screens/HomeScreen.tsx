@@ -21,8 +21,6 @@ export default function HomeScreen() {
           {t("home.myAppointments")}
         </Link>
       </nav>
-
-      <p className="muted home-note">{t("booking.noSlots")}</p>
     </div>
   );
 }

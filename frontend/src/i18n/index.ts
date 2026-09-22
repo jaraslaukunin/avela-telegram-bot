@@ -61,6 +61,7 @@ const ru: Dictionary = {
   "appointments.empty": "Записей пока нет",
   "appointments.cancel": "Отменить",
   "appointments.reschedule": "Перенести",
+  "appointments.cancelConfirm": "Вы уверены, что хотите отменить запись?",
   "appointments.cancelled": "Запись отменена",
   "appointments.deadlinePassed": "Отмена недоступна: до приёма меньше 2 часов",
   "appointments.startsAt": "Приём",
@@ -79,6 +80,7 @@ const ru: Dictionary = {
   "common.back": "Назад",
   "common.cancel": "Отмена",
   "common.confirm": "Да, подтверждаю",
+  "common.yesCancel": "Да, отменить",
   // --- Пациенты ---
   "patients.title": "Пациенты",
   "patients.add": "Добавить пациента",
@@ -241,6 +243,7 @@ const en: Dictionary = {
   "appointments.empty": "No appointments yet",
   "appointments.cancel": "Cancel",
   "appointments.reschedule": "Reschedule",
+  "appointments.cancelConfirm": "Are you sure you want to cancel this appointment?",
   "appointments.cancelled": "Appointment cancelled",
   "appointments.deadlinePassed": "Cancellation is not available: less than 2 hours left",
   "appointments.startsAt": "Appointment",
@@ -259,6 +262,7 @@ const en: Dictionary = {
   "common.back": "Back",
   "common.cancel": "Cancel",
   "common.confirm": "Yes, confirm",
+  "common.yesCancel": "Yes, cancel",
   // --- Patients ---
   "patients.title": "Patients",
   "patients.add": "Add patient",
@@ -421,6 +425,7 @@ const beLatn: Dictionary = {
   "appointments.empty": "Zapisaŭ pakul niama",
   "appointments.cancel": "Adkanavać",
   "appointments.reschedule": "Pieranieści",
+  "appointments.cancelConfirm": "Vy ŭpeŭnieny, što chočacie adkanavać zapis?",
   "appointments.cancelled": "Zapis adkanavany",
   "appointments.deadlinePassed": "Adkanavańnie niedastupna: da pryjomu mienš za 2 hadziny",
   "appointments.startsAt": "Pryjom",
@@ -439,6 +444,7 @@ const beLatn: Dictionary = {
   "common.back": "Nazad",
   "common.cancel": "Admova",
   "common.confirm": "Tak, padcvierdžaju",
+  "common.yesCancel": "Tak, adkanavać",
   // --- Pacyjenty ---
   "patients.title": "Pacyjenty",
   "patients.add": "Dadać pacyjenta",

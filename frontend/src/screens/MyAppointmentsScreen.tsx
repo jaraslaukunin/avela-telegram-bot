@@ -13,6 +13,7 @@ export default function MyAppointmentsScreen() {
   const location = useLocation();
   const state = location.state as { booked?: boolean } | null;
   const [error, setError] = useState("");
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const appointments = useQuery({
     queryKey: ["appointments"],
@@ -63,25 +64,45 @@ export default function MyAppointmentsScreen() {
             {appointment.status === "active" ? (
               <div className="card__actions">
                 {cancellable ? (
-                  <>
-                    <button
-                      className="button button--danger"
-                      disabled={cancel.isPending}
-                      onClick={() => cancel.mutate(appointment.id)}
-                      type="button"
-                    >
-                      {t("appointments.cancel")}
-                    </button>
-                    <button
-                      className="button button--secondary"
-                      onClick={() =>
-                        navigate("/appointments/reschedule", { state: { appointment } })
-                      }
-                      type="button"
-                    >
-                      {t("appointments.reschedule")}
-                    </button>
-                  </>
+                  confirmingId === appointment.id ? (
+                    <>
+                      <p className="muted">{t("appointments.cancelConfirm")}</p>
+                      <button
+                        className="button button--danger"
+                        disabled={cancel.isPending}
+                        onClick={() => cancel.mutate(appointment.id)}
+                        type="button"
+                      >
+                        {t("common.yesCancel")}
+                      </button>
+                      <button
+                        className="button button--secondary"
+                        onClick={() => setConfirmingId(null)}
+                        type="button"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="button button--danger"
+                        onClick={() => setConfirmingId(appointment.id)}
+                        type="button"
+                      >
+                        {t("appointments.cancel")}
+                      </button>
+                      <button
+                        className="button button--secondary"
+                        onClick={() =>
+                          navigate("/appointments/reschedule", { state: { appointment } })
+                        }
+                        type="button"
+                      >
+                        {t("appointments.reschedule")}
+                      </button>
+                    </>
+                  )
                 ) : (
                   <p className="muted">
                     {t("appointments.deadlinePassed")}

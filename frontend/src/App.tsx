@@ -195,7 +195,7 @@ function NoAccessScreen() {
 function ScreenMessage({ title, text }: { title: string; text: string }) {
   return (
     <div className="screen screen--centered">
-      <img alt={title} className="logo-img logo-img--small" src="/logo.svg?v=1" />
+      <img alt={title} className="logo-img logo-img--small spinner" src="/logo.svg?v=1" />
       <h1 className="logo">{title}</h1>
       <p className="muted">{text}</p>
     </div>
