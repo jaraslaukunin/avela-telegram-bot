@@ -394,12 +394,10 @@ async def assign_branch_admin(
 async def create_service(
     network_id: uuid.UUID,
     payload: ServiceCreate,
-    current: NetworkAdminUser,
+    current: AdminUser,
     session: DbSession,
 ) -> ServiceOut:
-    network = await session.get(Network, network_id)
-    if network is None or not permissions.can_manage_network(current, network_id):
-        raise HTTPException(status_code=404, detail="Сеть не найдена")
+    network = await _network_or_404(session, current, network_id)
 
     service = Service(network_id=network_id, **payload.model_dump())
     session.add(service)
@@ -442,11 +440,9 @@ async def list_services(
 
 @router.patch("/services/{service_id}")
 async def update_service(
-    service_id: uuid.UUID, payload: ServiceUpdate, current: NetworkAdminUser, session: DbSession
+    service_id: uuid.UUID, payload: ServiceUpdate, current: AdminUser, session: DbSession
 ) -> ServiceOut:
     service = await _service_or_404(session, current, service_id)
-    if not permissions.can_manage_network(current, service.network_id):
-        raise HTTPException(status_code=403, detail="Нет прав на изменение этой услуги")
 
     for field_name, value in payload.model_dump(exclude_unset=True).items():
         setattr(service, field_name, value)
