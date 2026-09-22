@@ -5,6 +5,7 @@ import { ApiError, NotInTelegramError, restoreOrLogin } from "./api/client";
 import { CalendarIcon, HomeIcon, SettingsIcon, UserIcon } from "./components/Icon";
 import { LocaleProvider, useT } from "./i18n/context";
 import AdminAppointmentsScreen from "./screens/admin/AdminAppointmentsScreen";
+import AdminAdminsScreen from "./screens/admin/AdminAdminsScreen";
 import AdminBranchesScreen from "./screens/admin/AdminBranchesScreen";
 import AdminDoctorsScreen from "./screens/admin/AdminDoctorsScreen";
 import AdminHomeScreen from "./screens/admin/AdminHomeScreen";
@@ -124,6 +125,10 @@ function AppInner() {
           <Route
             path="/admin"
             element={isAdmin ? <AdminHomeScreen /> : <NoAccessScreen />}
+          />
+          <Route
+            path="/admin/admins"
+            element={isAdmin ? <AdminAdminsScreen /> : <NoAccessScreen />}
           />
           <Route
             path="/admin/appointments"

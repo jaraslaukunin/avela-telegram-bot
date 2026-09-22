@@ -13,6 +13,9 @@ export default function AdminHomeScreen() {
         <Link className="button button--primary button--big" to="/admin/appointments">
           {t("admin.appointments")}
         </Link>
+        <Link className="button button--secondary button--big" to="/admin/admins">
+          {t("admin.admins")}
+        </Link>
         <Link className="button button--secondary button--big" to="/admin/doctors">
           {t("admin.doctors")}
         </Link>

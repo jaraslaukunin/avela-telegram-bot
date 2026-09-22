@@ -238,6 +238,18 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  adminNetworks: () => request<NetworkOut[]>("/admin/networks"),
+  adminAssignNetworkAdmin: (networkId: string, telegramId: number) =>
+    request<void>(`/admin/networks/${networkId}/admins`, {
+      method: "POST",
+      body: JSON.stringify({ telegram_id: telegramId }),
+    }),
+  adminAssignBranchAdmin: (branchId: string, telegramId: number) =>
+    request<void>(`/admin/branches/${branchId}/admins`, {
+      method: "POST",
+      body: JSON.stringify({ telegram_id: telegramId }),
+    }),
+
   adminBranches: (networkId?: string) =>
     request<BranchOut[]>(
       networkId ? `/admin/branches?network_id=${networkId}` : "/admin/branches",
