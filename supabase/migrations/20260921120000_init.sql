@@ -142,7 +142,7 @@ begin
     from appointments a
     join slots existing_slot on existing_slot.id = a.slot_id
     join slots new_slot on new_slot.id = new.slot_id
-    where a.patient_id = new.patient_id
+    where a.patient_profile_id = new.patient_profile_id
       and a.status = 'active'
       and a.id is distinct from new.id
       and tstzrange(existing_slot.starts_at, existing_slot.ends_at)
