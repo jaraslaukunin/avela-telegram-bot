@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
+import { Loading } from "../components/Loading";
 import { formatDateTime, isCancellable } from "../format";
 import { useT } from "../i18n/context";
 
@@ -36,7 +37,7 @@ export default function MyAppointmentsScreen() {
 
       {state?.booked ? <p className="success">{t("booking.success")}</p> : null}
       {error ? <p className="error">{error}</p> : null}
-      {appointments.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+      {appointments.isLoading ? <Loading /> : null}
       {appointments.data && appointments.data.length === 0 ? (
         <p className="muted">{t("appointments.empty")}</p>
       ) : null}

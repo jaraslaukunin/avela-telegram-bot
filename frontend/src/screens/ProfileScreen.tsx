@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../api/client";
+import { Loading } from "../components/Loading";
 import { useLocale, useSetLocale, useT } from "../i18n/context";
 import { locales, type Locale } from "../i18n";
 
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
     <div className="screen">
       <h2>{t("profile.title")}</h2>
 
-      {me.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+      {me.isLoading ? <Loading /> : null}
 
       {me.data ? (
         <div className="card">

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { OfferOut, SlotOut } from "../api/types";
 import { AddPatientForm, PatientCard } from "../components/Patients";
+import { Loading } from "../components/Loading";
 import { SlotCalendar } from "../components/SlotCalendar";
 import { formatDate, formatPrice, formatTime } from "../format";
 import { useT } from "../i18n/context";
@@ -127,7 +128,7 @@ export default function BookingScreen() {
 
           <section className="card">
             <h3 className="section__title">{t("booking.specialist")}</h3>
-            {services.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+            {services.isLoading ? <Loading /> : null}
             {services.data && services.data.length === 0 ? (
               <p className="muted">{t("admin.noServices")}</p>
             ) : null}
@@ -168,7 +169,7 @@ export default function BookingScreen() {
             {city ? ` · ${city}` : ""}
           </p>
 
-          {offers.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+          {offers.isLoading ? <Loading /> : null}
           {offers.data && offers.data.offers.length === 0 ? (
             <p className="muted">{t("booking.offersEmpty")}</p>
           ) : null}
@@ -235,7 +236,7 @@ export default function BookingScreen() {
             </div>
           ) : null}
 
-          {slots.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+          {slots.isLoading ? <Loading /> : null}
           {slots.data && slots.data.length === 0 ? (
             <p className="muted">{t("booking.noSlots")}</p>
           ) : null}
@@ -262,7 +263,7 @@ export default function BookingScreen() {
 
           <h3 className="section__title">{t("booking.patientStep")}</h3>
 
-          {patients.isLoading ? <p className="muted">{t("common.loading")}</p> : null}
+          {patients.isLoading ? <Loading /> : null}
 
           <div className="patients">
             {patients.data?.map((patient) => (
