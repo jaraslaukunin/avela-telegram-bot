@@ -9,6 +9,7 @@ from sqlalchemy import DateTime
 import app.models.appointment  # noqa: F401
 import app.models.catalog  # noqa: F401
 import app.models.notification  # noqa: F401
+import app.models.patient  # noqa: F401
 import app.models.schedule  # noqa: F401
 import app.models.service  # noqa: F401
 import app.models.user  # noqa: F401

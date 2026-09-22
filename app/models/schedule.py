@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -9,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     Time,
     Uuid,
     func,
@@ -54,6 +56,7 @@ class ScheduleTemplate(Base):
         to_date: date,
         duration_minutes: int,
         tz: ZoneInfo,
+        price: Decimal | None = None,
     ) -> list["Slot"]:
         """Генерирует слоты по шаблону на интервал дат включительно.
 
@@ -77,6 +80,7 @@ class ScheduleTemplate(Base):
                             service_id=self.service_id,
                             starts_at=cursor.astimezone(UTC),
                             ends_at=(cursor + step).astimezone(UTC),
+                            price=price,
                         )
                     )
                     cursor += step
@@ -99,6 +103,7 @@ class Slot(Base):
     )
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

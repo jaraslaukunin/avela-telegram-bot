@@ -18,6 +18,7 @@ from app.api.appointments import router as appointments_router
 from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
+from app.api.patients import router as patients_router
 from app.api.privacy import router as privacy_router
 from app.bot.errors import handle_bot_error
 from app.bot.handlers.appointments import router as bot_appointments_router
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
     application.include_router(admin_catalog_router)
     application.include_router(admin_appointments_router)
     application.include_router(privacy_router)
+    application.include_router(patients_router)
     application.include_router(build_webhook_router(bot, dispatcher, settings))
 
     @application.exception_handler(Exception)

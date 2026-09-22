@@ -10,6 +10,7 @@
 import argparse
 import asyncio
 from datetime import UTC, datetime, time, timedelta
+from decimal import Decimal
 
 from sqlalchemy import exists, func, select
 
@@ -124,6 +125,8 @@ async def seed_demo(days: int = 14) -> None:
                 address="ул. Примерная, 1",
                 phone="+375 17 000-00-00",
                 timezone="Europe/Minsk",
+                latitude=53.9006,
+                longitude=27.5590,
             )
             session.add(branch)
             await session.flush()
@@ -157,7 +160,13 @@ async def seed_demo(days: int = 14) -> None:
             )
             session.add(doctor)
             await session.flush()
-            session.add(DoctorService(doctor_id=doctor.id, service_id=service.id))
+            session.add(
+                DoctorService(
+                    doctor_id=doctor.id,
+                    service_id=service.id,
+                    price=Decimal("120.00"),
+                )
+            )
             print(f"Создан врач: {doctor.full_name}")
 
         today = datetime.now(UTC).date()

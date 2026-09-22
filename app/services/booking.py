@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
+from app.models.patient import Patient
 from app.models.schedule import Slot
 from app.models.user import User
 from app.services import audit, notifications
@@ -95,29 +96,42 @@ async def list_patient_appointments(
 
 async def _ensure_no_patient_overlap(
     session: AsyncSession,
-    patient_id: uuid.UUID,
+    patient: Patient,
     slot: Slot,
 ) -> None:
-    """Явная проверка пересечения записей пациента (дублируется триггером в БД)."""
+    """Явная проверка пересечений КОНКРЕТНОГО пациента (дублируется триггером).
+
+    Два разных пациента одного аккаунта могут записаться на одно время —
+    пересечения считаются на уровне человека, а не аккаунта.
+    """
     patient_slots = (
         await session.execute(
             select(Slot)
             .join(Appointment, Appointment.slot_id == Slot.id)
-            .where(Appointment.patient_id == patient_id, Appointment.status == "active")
+            .where(
+                Appointment.patient_profile_id == patient.id,
+                Appointment.status == "active",
+            )
         )
     ).scalars().all()
 
     if any(slot.overlaps(existing) for existing in patient_slots):
-        raise BookingError("У вас уже есть запись на пересекающееся время")
+        raise BookingError("У этого пациента уже есть запись на пересекающееся время")
 
 
 async def book_slot(
     session: AsyncSession,
-    patient: User,
+    user: User,
+    patient: Patient,
     slot_id: uuid.UUID,
-    patient_full_name: str | None = None,
 ) -> Appointment:
-    """Запись на конкретный слот. Атомарно защищена уникальным индексом БД."""
+    """Запись конкретного пациента на слот.
+
+    Атомарно защищена уникальным индексом БД и триггером пересечений.
+    """
+    if patient.user_id != user.id:
+        raise BookingError("Пациент не принадлежит вашему аккаунту")
+
     slot = await session.get(Slot, slot_id)
     if slot is None:
         raise SlotUnavailableError("Слот не найден")
@@ -131,13 +145,14 @@ async def book_slot(
     if taken is not None:
         raise SlotUnavailableError("Слот уже занят")
 
-    await _ensure_no_patient_overlap(session, patient.id, slot)
+    await _ensure_no_patient_overlap(session, patient, slot)
 
     appointment = Appointment(
-        patient_id=patient.id,
+        patient_id=user.id,
         slot_id=slot_id,
         status="active",
-        patient_full_name=patient_full_name,
+        patient_profile_id=patient.id,
+        patient_full_name=patient.full_name,
     )
     session.add(appointment)
 
@@ -216,6 +231,19 @@ async def cancel_appointment_by_admin(
     return appointment
 
 
+async def _load_patient_profile(
+    session: AsyncSession,
+    appointment: Appointment,
+) -> Patient:
+    """Профиль пациента записи — нужен для проверки пересечений при переносе."""
+    if appointment.patient_profile_id is None:
+        raise BookingError("У записи нет привязки к пациенту")
+    patient = await session.get(Patient, appointment.patient_profile_id)
+    if patient is None:
+        raise BookingError("Пациент не найден")
+    return patient
+
+
 async def reschedule_appointment(
     session: AsyncSession,
     patient_id: uuid.UUID,
@@ -244,7 +272,9 @@ async def reschedule_appointment(
     if new_slot is None:
         raise SlotUnavailableError("Новый слот не найден")
 
-    await _ensure_no_patient_overlap(session, patient_id, new_slot)
+    await _ensure_no_patient_overlap(
+        session, await _load_patient_profile(session, appointment), new_slot
+    )
 
     new_appointment = Appointment(
         patient_id=patient_id,
@@ -252,6 +282,7 @@ async def reschedule_appointment(
         status="active",
         rescheduled_from_id=appointment.id,
         patient_full_name=appointment.patient_full_name,
+        patient_profile_id=appointment.patient_profile_id,
     )
     appointment.status = "rescheduled"
     session.add(new_appointment)

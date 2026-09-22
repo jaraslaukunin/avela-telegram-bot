@@ -9,6 +9,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.catalog import Branch
+    from app.models.patient import Patient
     from app.models.schedule import Slot
     from app.models.user import User
 
@@ -27,6 +28,9 @@ class Appointment(Base):
     slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("slots.id", ondelete="RESTRICT"))
     status: Mapped[str] = mapped_column(String(30), default="active")
     patient_full_name: Mapped[str | None] = mapped_column(String(300))
+    patient_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("patients.id", ondelete="RESTRICT")
+    )
     rescheduled_from_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("appointments.id")
     )
@@ -41,6 +45,7 @@ class Appointment(Base):
 
     slot: Mapped["Slot"] = relationship(lazy="selectin")
     patient: Mapped["User"] = relationship(lazy="selectin")
+    patient_profile: Mapped["Patient"] = relationship(lazy="selectin")
 
     @property
     def is_active(self) -> bool:

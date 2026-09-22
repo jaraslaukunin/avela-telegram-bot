@@ -24,6 +24,7 @@ from app.models.catalog import Branch, Doctor, Network, Service
 from app.models.schedule import Slot
 from app.models.user import AuditLog, BranchAdmin, User
 from app.services.booking import book_slot
+from app.services.users import get_or_create_default_patient
 
 SECRET = "integration-test-secret-0123456789"
 
@@ -273,7 +274,8 @@ async def test_admin_can_cancel_appointment_without_deadline(
     db_session.add(slot)
     await db_session.flush()
 
-    appointment = await book_slot(db_session, patient, slot.id)
+    person = await get_or_create_default_patient(db_session, patient)
+    appointment = await book_slot(db_session, patient, person, slot.id)
 
     response = await client.post(
         f"/admin/appointments/{appointment.id}/cancel",
@@ -316,7 +318,8 @@ async def test_branch_admin_cannot_cancel_foreign_appointment(
     db_session.add(slot)
     await db_session.flush()
 
-    appointment = await book_slot(db_session, patient, slot.id)
+    person = await get_or_create_default_patient(db_session, patient)
+    appointment = await book_slot(db_session, patient, person, slot.id)
 
     response = await client.post(
         f"/admin/appointments/{appointment.id}/cancel",

@@ -10,6 +10,7 @@
 from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, DoctorService, Network, Service
 from app.models.notification import Notification
+from app.models.patient import Patient
 from app.models.schedule import ScheduleTemplate, Slot
 from app.models.service import ServiceHeartbeat
 from app.models.user import AuditLog, BranchAdmin, User
@@ -23,6 +24,7 @@ __all__ = [
     "DoctorService",
     "Network",
     "Notification",
+    "Patient",
     "ScheduleTemplate",
     "Service",
     "ServiceHeartbeat",

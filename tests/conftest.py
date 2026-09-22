@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.catalog import Branch, Doctor, Network, Service
+from app.models.patient import Patient
 from app.models.schedule import Slot
 from app.models.user import User
 
@@ -17,6 +18,7 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "")
 TABLES = (
     "notifications",
     "service_heartbeats",
+    "patients",
     "appointments",
     "slots",
     "schedule_templates",
@@ -73,6 +75,11 @@ async def booking_catalog(db_session: AsyncSession) -> dict[str, uuid.UUID]:
     db_session.add_all([service, patient, patient2, doctor, doctor2])
     await db_session.flush()
 
+    person1 = Patient(user_id=patient.id, full_name="Пациент 1")
+    person2 = Patient(user_id=patient2.id, full_name="Пациент 2")
+    db_session.add_all([person1, person2])
+    await db_session.flush()
+
     now = datetime.now(UTC).replace(microsecond=0)
 
     def slot(doctor: Doctor, start: datetime, end: datetime) -> Slot:
@@ -96,6 +103,8 @@ async def booking_catalog(db_session: AsyncSession) -> dict[str, uuid.UUID]:
         "service_id": service.id,
         "patient_id": patient.id,
         "patient2_id": patient2.id,
+        "patient_profile_id": person1.id,
+        "patient2_profile_id": person2.id,
         "doctor_id": doctor.id,
         "doctor2_id": doctor2.id,
         "far_slot_id": far_slot.id,

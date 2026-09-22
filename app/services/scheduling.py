@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.catalog import Branch, Doctor, Service
+from app.models.catalog import Branch, Doctor, DoctorService, Service
 from app.models.schedule import ScheduleTemplate, Slot
 
 
@@ -42,7 +42,18 @@ async def generate_slots_for_template(
         raise SchedulingError("Врач шаблона не найден")
 
     generated = template.generate_slots(
-        from_date, to_date, service.duration_minutes, branch.tz()
+        from_date,
+        to_date,
+        service.duration_minutes,
+        branch.tz(),
+        # Снимок цены на момент генерации: запись должна помнить цену,
+        # даже если администратор поменяет её позже.
+        await session.scalar(
+            select(DoctorService.price).where(
+                DoctorService.doctor_id == template.doctor_id,
+                DoctorService.service_id == template.service_id,
+            )
+        ),
     )
     if not generated:
         return 0, 0
@@ -59,6 +70,7 @@ async def generate_slots_for_template(
                 "service_id": slot.service_id,
                 "starts_at": slot.starts_at,
                 "ends_at": slot.ends_at,
+                "price": slot.price,
             }
         )
 

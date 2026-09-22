@@ -34,6 +34,7 @@ from app.services.booking import (
     book_slot,
     get_appointment_context,
 )
+from app.services.users import get_or_create_default_patient
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +286,9 @@ async def choose_slot(callback: CallbackQuery, state: FSMContext) -> None:
 
     factory = get_session_factory()
     async with factory() as session:
+        patient = await get_or_create_default_patient(session, user)
         try:
-            appointment = await book_slot(session, user, slot_id)
+            appointment = await book_slot(session, user, patient, slot_id)
         except SlotUnavailableError as exc:
             await callback.answer(str(exc), show_alert=True)
             data = await state.get_data()

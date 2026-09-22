@@ -137,6 +137,7 @@ async def available_slots(
             service_id=slot.service_id,
             starts_at=slot.starts_at,
             ends_at=slot.ends_at,
+            price=slot.price,
         )
         for slot, _doctor, _branch in rows
     ]

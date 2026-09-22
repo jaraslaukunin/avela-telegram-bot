@@ -1,11 +1,14 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -54,6 +57,8 @@ class Branch(Base):
     address: Mapped[str] = mapped_column(Text, default="")
     phone: Mapped[str] = mapped_column(String(50), default="")
     timezone: Mapped[str] = mapped_column(String(100), default="Europe/Moscow")
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -136,3 +141,4 @@ class DoctorService(Base):
     service_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("services.id", ondelete="CASCADE"), primary_key=True
     )
+    price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))

@@ -10,6 +10,7 @@ from app.core.rate_limit import RateLimiter
 from app.db import get_session
 from app.models.appointment import Appointment
 from app.models.catalog import Branch, Doctor, Service
+from app.models.patient import Patient
 from app.models.schedule import Slot
 from app.models.user import User
 from app.schemas import AppointmentOut, BookingRequest, RescheduleRequest
@@ -23,6 +24,7 @@ from app.services.booking import (
     get_appointment_context,
     reschedule_appointment,
 )
+from app.services.users import get_or_create_default_patient
 
 BookingRateLimit = RateLimiter(limit=30)
 
@@ -43,6 +45,9 @@ def _to_out(
         slot_id=slot.id,
         doctor_id=doctor.id,
         service_id=service.id,
+        patient_id=appointment.patient_profile_id,
+        patient_name=appointment.patient_full_name,
+        price=slot.price,
         starts_at=slot.starts_at,
         ends_at=slot.ends_at,
         doctor_name=doctor.full_name,
@@ -92,7 +97,14 @@ async def create_appointment(
     session: AsyncSession = Depends(get_session),
 ) -> AppointmentOut:
     try:
-        appointment = await book_slot(session, current, payload.slot_id)
+        if payload.patient_id is None:
+            patient = await get_or_create_default_patient(session, current)
+        else:
+            found = await session.get(Patient, payload.patient_id)
+            if found is None:
+                raise HTTPException(status_code=404, detail="Пациент не найден")
+            patient = found
+        appointment = await book_slot(session, current, patient, payload.slot_id)
     except SlotUnavailableError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except BookingError as exc:

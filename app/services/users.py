@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.patient import Patient
 from app.models.user import User
 
 
@@ -38,3 +39,39 @@ async def get_or_create_user(
         if user is None:
             raise
     return user
+
+
+async def get_or_create_default_patient(
+    session: AsyncSession,
+    user: User,
+) -> Patient:
+    """Пациент «по умолчанию» для аккаунта.
+
+    В Mini App пользователь управляет списком пациентов явно; в боте
+    действует один профиль — сам владелец аккаунта.
+    """
+    patient = await session.scalar(
+        select(Patient)
+        .where(Patient.user_id == user.id)
+        .order_by(Patient.created_at)
+        .limit(1)
+    )
+    if patient is not None:
+        return patient
+
+    name = f"{user.first_name} {user.last_name}".strip() or "Пациент"
+    patient = Patient(user_id=user.id, full_name=name)
+    session.add(patient)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        patient = await session.scalar(
+            select(Patient)
+            .where(Patient.user_id == user.id)
+            .order_by(Patient.created_at)
+            .limit(1)
+        )
+        if patient is None:
+            raise
+    return patient

@@ -16,6 +16,8 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+# Миграции внутри образа: их можно применять из контейнера (python -m app.cli / db push)
+COPY supabase ./supabase
 
 RUN useradd --create-home --uid 1001 avela \
     && chown -R avela:avela /app

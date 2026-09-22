@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
 from app.models.notification import Notification
+from app.models.patient import Patient
 from app.models.user import User
 from app.services import audit
 
@@ -70,6 +71,14 @@ async def anonymize_user(
             "skipped_notifications": len(pending_notifications),
         },
     )
+
+    # Профили пациентов аккаунта тоже содержат ПДн (ФИО, даты рождения).
+    patients = (
+        await session.execute(select(Patient).where(Patient.user_id == user.id))
+    ).scalars().all()
+    for patient in patients:
+        patient.full_name = "Аноним"
+        patient.birth_date = None
 
     user.first_name = ""
     user.last_name = ""

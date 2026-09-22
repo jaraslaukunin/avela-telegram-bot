@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime, time
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -33,6 +34,9 @@ class AppointmentOut(BaseModel):
     slot_id: uuid.UUID
     doctor_id: uuid.UUID
     service_id: uuid.UUID
+    patient_id: uuid.UUID | None
+    patient_name: str | None
+    price: Decimal | None
     starts_at: datetime
     ends_at: datetime
     doctor_name: str
@@ -50,6 +54,7 @@ class SlotOut(BaseModel):
     service_id: uuid.UUID
     starts_at: datetime
     ends_at: datetime
+    price: Decimal | None
 
 
 class NetworkOut(BaseModel):
@@ -94,10 +99,26 @@ class ServiceOut(BaseModel):
 
 class BookingRequest(BaseModel):
     slot_id: uuid.UUID
+    # Необязательно: без него бронируется пациент «по умолчанию»
+    # (совместимость с ботом и старыми клиентами).
+    patient_id: uuid.UUID | None = None
 
 
 class RescheduleRequest(BaseModel):
     new_slot_id: uuid.UUID
+
+
+class PatientCreate(BaseModel):
+    full_name: str = Field(min_length=1, max_length=300)
+    birth_date: date | None = None
+
+
+class PatientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    full_name: str
+    birth_date: date | None
 
 
 # --- Административные схемы ---
@@ -123,6 +144,8 @@ class BranchCreate(BaseModel):
     address: str = ""
     phone: str = ""
     timezone: str = "Europe/Moscow"
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
 
     @field_validator("timezone")
     @classmethod
@@ -141,6 +164,8 @@ class BranchUpdate(BaseModel):
     address: str | None = None
     phone: str | None = None
     timezone: str | None = None
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
     is_active: bool | None = None
 
 

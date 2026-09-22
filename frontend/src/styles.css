@@ -3,8 +3,8 @@
 :root {
   --ivory: #faf7f0;
   --ivory-card: #ffffff;
-  --blue: #1f4e8c;
-  --blue-soft: #e6eef9;
+  --blue: #0f6bf5;
+  --blue-soft: #e6efff;
   --text: #1c1c1e;
   --muted: #6b7280;
   --error: #b42318;
@@ -16,7 +16,7 @@
 :root[data-theme="dark"] {
   --ivory: #121417;
   --ivory-card: #1b1f24;
-  --blue: #7aa7e0;
+  --blue: #6fa8ff;
   --blue-soft: #22303f;
   --text: #f2f4f7;
   --muted: #9aa3af;
@@ -67,6 +67,21 @@ body {
   font-size: 32px;
   letter-spacing: -0.02em;
   color: var(--blue);
+}
+
+.logo-img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 10px;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(15, 107, 245, 0.18);
+}
+
+.logo-img--small {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
 }
 
 .hero {

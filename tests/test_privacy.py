@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
 from app.models.notification import Notification
+from app.models.patient import Patient
 from app.models.user import AuditLog, User
 from app.services.booking import book_slot
 from app.services.privacy import anonymize_user
@@ -22,7 +23,10 @@ async def test_anonymize_cancels_appointments_and_scrubs_pii(
     await db_session.commit()
     original_telegram_id = patient.telegram_id
 
-    appointment = await book_slot(db_session, patient, booking_catalog["far_slot_id"])
+    person = await db_session.get(Patient, booking_catalog["patient_profile_id"])
+    assert person is not None
+
+    appointment = await book_slot(db_session, patient, person, booking_catalog["far_slot_id"])
 
     report = await anonymize_user(db_session, patient)
 
@@ -57,9 +61,16 @@ async def test_anonymized_user_keeps_appointment_history(
 ) -> None:
     patient = await db_session.get(User, booking_catalog["patient_id"])
     assert patient is not None
-    appointment = await book_slot(db_session, patient, booking_catalog["far_slot_id"])
+    person = await db_session.get(Patient, booking_catalog["patient_profile_id"])
+    assert person is not None
+    appointment = await book_slot(db_session, patient, person, booking_catalog["far_slot_id"])
 
     await anonymize_user(db_session, patient)
+
+    # Профиль пациента тоже обезличен: ФИО и дата рождения стёрты.
+    await db_session.refresh(person)
+    assert person.full_name == "Аноним"
+    assert person.birth_date is None
 
     # История записей остаётся обезличенной — клинике нужна статистика.
     stored = await db_session.get(Appointment, appointment.id)
