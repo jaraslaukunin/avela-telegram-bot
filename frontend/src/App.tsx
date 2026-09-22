@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 
-import { ApiError, restoreOrLogin } from "./api/client";
+import { ApiError, NotInTelegramError, restoreOrLogin } from "./api/client";
 import { detectLocale, translate, type Locale } from "./i18n";
 import { LocaleProvider, useT } from "./i18n/context";
 import AdminAppointmentsScreen from "./screens/admin/AdminAppointmentsScreen";
@@ -11,6 +11,7 @@ import AdminScheduleScreen from "./screens/admin/AdminScheduleScreen";
 import { useAdminScope } from "./screens/admin/useAdminScope";
 import BookingScreen from "./screens/BookingScreen";
 import HomeScreen from "./screens/HomeScreen";
+import LandingScreen from "./screens/LandingScreen";
 import MyAppointmentsScreen from "./screens/MyAppointmentsScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import RescheduleScreen from "./screens/RescheduleScreen";
@@ -22,6 +23,7 @@ export default function App() {
   const [locale] = useState<Locale>(() => detectLocale(getTelegramLanguage()));
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState<string>("");
+  const [notInTelegram, setNotInTelegram] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -47,6 +49,11 @@ export default function App() {
         if (cancelled) {
           return;
         }
+        if (error instanceof NotInTelegramError) {
+          setNotInTelegram(true);
+          setAuthState("error");
+          return;
+        }
         setAuthError(
           error instanceof ApiError ? error.message : "Не удалось выполнить вход",
         );
@@ -70,15 +77,23 @@ export default function App() {
   }
 
   if (authState === "error") {
+    if (notInTelegram) {
+      return (
+        <LocaleProvider locale={locale}>
+          <div className="app">
+            <main className="app__content">
+              <LandingScreen />
+            </main>
+          </div>
+        </LocaleProvider>
+      );
+    }
+
     return (
       <LocaleProvider locale={locale}>
         <div className="screen screen--centered">
           <h1 className="logo">Avela</h1>
           <p className="muted">{authError}</p>
-          <p className="muted">
-            Приложение работает только внутри Telegram: откройте бота и нажмите
-            кнопку приложения, либо «Повторить», если окно только что открылось.
-          </p>
           <button
             className="button button--primary button--big"
             onClick={() => setAttempt((value) => value + 1)}

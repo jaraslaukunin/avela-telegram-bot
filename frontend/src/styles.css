@@ -291,3 +291,53 @@ body {
   font-size: 14px;
   color: var(--muted);
 }
+
+/* Лендинг для посетителей вне Telegram */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 520px;
+  margin: 0 auto;
+  padding-top: 24px;
+}
+
+.landing__hero {
+  text-align: center;
+  padding: 24px 0 8px;
+}
+
+.landing__logo {
+  margin: 0;
+  font-size: 48px;
+  letter-spacing: -0.03em;
+  color: var(--blue);
+}
+
+.landing__tagline {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.landing__cta {
+  margin-top: 20px;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.landing__steps {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.landing__note {
+  text-align: center;
+  font-size: 13px;
+}

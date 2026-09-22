@@ -58,6 +58,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Пользователь открыл Mini App не из Telegram — initData отсутствует. */
+export class NotInTelegramError extends ApiError {
+  constructor() {
+    super(401, "Откройте приложение через Telegram");
+    this.name = "NotInTelegramError";
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
@@ -92,7 +100,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export async function login(): Promise<LoginResponse> {
   const initData = getInitData();
   if (!initData) {
-    throw new ApiError(401, "Откройте приложение через Telegram");
+    throw new NotInTelegramError();
   }
 
   const data = await request<LoginResponse>("/auth/telegram", {

@@ -93,6 +93,16 @@ const ru: Dictionary = {
   "common.save": "Сохранить",
   "common.saving": "Сохраняю…",
   "common.create": "Создать",
+
+  // --- Лендинг ---
+  "landing.tagline": "Запись к врачу без звонков и очередей",
+  "landing.subtitle": "Выберите врача, филиал и время — напомним заранее",
+  "landing.openInTelegram": "Открыть в Telegram",
+  "landing.howTitle": "Как это работает",
+  "landing.how1": "Найдите специалиста по нужному направлению",
+  "landing.how2": "Выберите ближайший филиал и удобное время",
+  "landing.how3": "Приходите — напомним за 24 часа и за 2 часа",
+  "landing.notInTelegram": "Avela — Mini App внутри Telegram. Откройте бота, чтобы записаться.",
 };
 
 const en: Dictionary = {
@@ -181,6 +191,16 @@ const en: Dictionary = {
   "common.save": "Save",
   "common.saving": "Saving…",
   "common.create": "Create",
+
+  // --- Landing ---
+  "landing.tagline": "Book a doctor without phone calls and queues",
+  "landing.subtitle": "Choose a doctor, branch and time — we'll remind you",
+  "landing.openInTelegram": "Open in Telegram",
+  "landing.howTitle": "How it works",
+  "landing.how1": "Find a specialist for your need",
+  "landing.how2": "Pick the nearest branch and a convenient time",
+  "landing.how3": "Just come — we'll remind you 24 and 2 hours ahead",
+  "landing.notInTelegram": "Avela is a Mini App inside Telegram. Open the bot to book.",
 };
 
 const beLatn: Dictionary = {
@@ -269,6 +289,16 @@ const beLatn: Dictionary = {
   "common.save": "Zachavać",
   "common.saving": "Zachavaju…",
   "common.create": "Stvaryć",
+
+  // --- Landing ---
+  "landing.tagline": "Zapis da ŭrača biez zvonkaŭ i čarhoŭ",
+  "landing.subtitle": "Abarocie ŭrača, filijal i čas — my nahabadajem",
+  "landing.openInTelegram": "Adkryć u Telegram",
+  "landing.howTitle": "Jak heta pracuje",
+  "landing.how1": "Znajdziecie specjalista pa patrebnym kirunku",
+  "landing.how2": "Abarocie najbližejšy filijal i zručny čas",
+  "landing.how3": "Prychodźcie — nahabadajem za 24 i 2 hadziny",
+  "landing.notInTelegram": "Avela — Mini App u Telegram. Adkryjcie bota, kab zapisacca.",
 };
 
 export const dictionaries: Record<Locale, Dictionary> = {
