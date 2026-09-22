@@ -26,6 +26,7 @@ export default function RescheduleScreen() {
         doctorId: appointment?.doctor_id,
       }),
     enabled: Boolean(appointment),
+    staleTime: 5_000,
   });
 
   const reschedule = useMutation({

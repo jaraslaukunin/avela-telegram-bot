@@ -18,21 +18,28 @@ export default function BookingScreen() {
   const [slotId, setSlotId] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
 
-  const networks = useQuery({ queryKey: ["networks"], queryFn: api.networks });
+  const networks = useQuery({
+    queryKey: ["networks"],
+    queryFn: api.networks,
+    staleTime: 5 * 60_000,
+  });
   const services = useQuery({
     queryKey: ["services", networkId],
     queryFn: () => api.services(networkId ?? ""),
     enabled: Boolean(networkId),
+    staleTime: 5 * 60_000,
   });
   const branches = useQuery({
     queryKey: ["branches", networkId],
     queryFn: () => api.branches(networkId ?? ""),
     enabled: Boolean(networkId),
+    staleTime: 5 * 60_000,
   });
   const doctors = useQuery({
     queryKey: ["doctors", branchId, serviceId],
     queryFn: () => api.doctors(branchId ?? "", serviceId ?? ""),
     enabled: Boolean(branchId && serviceId),
+    staleTime: 5 * 60_000,
   });
   const slots = useQuery({
     queryKey: ["slots", serviceId, branchId, doctorId],
@@ -43,6 +50,8 @@ export default function BookingScreen() {
         doctorId: doctorId ?? undefined,
       }),
     enabled: Boolean(serviceId && branchId),
+    // Слоты меняются с каждой записью — держим их «свежими» недолго.
+    staleTime: 5_000,
   });
 
   const book = useMutation({

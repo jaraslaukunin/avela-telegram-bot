@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import uvicorn
 from aiogram import Bot, Dispatcher
@@ -29,6 +29,7 @@ from app.bot.webhook import WEBHOOK_PATH, build_webhook_router
 from app.config import get_settings
 from app.core.logging import configure_logging, request_id_var
 from app.core.middleware import RequestIdMiddleware, SecurityHeadersMiddleware
+from app.db import keep_database_warm
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -53,6 +54,10 @@ dispatcher.errors.register(handle_bot_error)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     poll_task: asyncio.Task[None] | None = None
 
+    # Держим соединение с БД тёплым: холодное рукопожатие к Supabase
+    # стоит около секунды, а после паузы платится заново.
+    warm_task = asyncio.create_task(keep_database_warm())
+
     if settings.webhook_mode:
         await bot.set_webhook(
             url=f"{settings.webhook_base_url.rstrip('/')}{WEBHOOK_PATH}",
@@ -63,6 +68,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         poll_task = asyncio.create_task(dispatcher.start_polling(bot))
 
     yield
+
+    warm_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await warm_task
 
     if poll_task is not None:
         poll_task.cancel()

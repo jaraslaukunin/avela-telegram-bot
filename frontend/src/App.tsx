@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 
-import { ApiError, login } from "./api/client";
+import { ApiError, restoreOrLogin } from "./api/client";
 import { detectLocale, translate, type Locale } from "./i18n";
 import { LocaleProvider, useT } from "./i18n/context";
 import BookingScreen from "./screens/BookingScreen";
@@ -29,7 +29,7 @@ export default function App() {
 
     const run = async () => {
       await waitForTelegramWebApp();
-      return login();
+      return restoreOrLogin();
     };
 
     run()

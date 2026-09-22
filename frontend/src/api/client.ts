@@ -14,14 +14,33 @@ import type {
 export const API_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined) ?? "http://127.0.0.1:8000";
 
+const TOKEN_KEY = "avela_token";
+
 let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
+  try {
+    if (token) {
+      sessionStorage.setItem(TOKEN_KEY, token);
+    } else {
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // Приватный режим или запрет storage — некритично, работаем из памяти.
+  }
 }
 
 export function getAccessToken(): string | null {
   return accessToken;
+}
+
+function getStoredToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export class ApiError extends Error {
@@ -129,3 +148,24 @@ export const api = {
 
   deleteMe: () => request<AnonymizationOut>("/privacy/delete-me", { method: "POST" }),
 };
+
+/**
+ * Восстанавливает сессию из sessionStorage, если токен ещё жив.
+ *
+ * Экономит два сетевых круга (auth/telegram + проверка) при повторном
+ * открытии Mini App — а каждый круг до API заметен на мобильной сети.
+ */
+export async function restoreOrLogin(): Promise<UserOut> {
+  const stored = getStoredToken();
+  if (stored) {
+    setAccessToken(stored);
+    try {
+      return await api.me();
+    } catch {
+      setAccessToken(null);
+    }
+  }
+
+  const data = await login();
+  return data.user;
+}

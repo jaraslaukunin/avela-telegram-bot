@@ -11,7 +11,12 @@ initTelegramUi();
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      // Каталог меняется редко: не перезапрашиваем при каждой навигации.
+      staleTime: 60_000,
+    },
   },
 });
 
