@@ -28,6 +28,12 @@ export default function AdminBranchesScreen() {
   const networkId =
     scope.data && !scope.data.can_access_all ? scope.data.network_ids[0] : undefined;
 
+  // Филиалы создаёт и отключает администратор сети (или владелец),
+  // администратор филиала видит список, но не управляет им.
+  const canManageBranches = Boolean(
+    scope.data && scope.data.role !== "branch_admin",
+  );
+
   const createBranch = useMutation({
     mutationFn: () =>
       api.adminCreateBranch(networkId ?? "", {
@@ -67,7 +73,7 @@ export default function AdminBranchesScreen() {
       {error ? <p className="error">{error}</p> : null}
       {message ? <p className="success">{message}</p> : null}
 
-      {networkId ? (
+      {networkId && canManageBranches ? (
         <section className="card">
           <h3 className="section__title">{t("admin.createBranch")}</h3>
           <input
@@ -119,7 +125,7 @@ export default function AdminBranchesScreen() {
           </p>
           <p className="card__meta">{branch.phone}</p>
           <p className="card__meta">{t("admin.timezone")}: {branch.timezone}</p>
-          {networkId === branch.network_id ? (
+          {networkId === branch.network_id && canManageBranches ? (
             <div className="card__actions">
               <button
                 className="button button--secondary"

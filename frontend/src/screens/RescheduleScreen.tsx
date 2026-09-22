@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
 import type { AppointmentOut } from "../api/types";
-import { formatDate, formatTime } from "../format";
+import { SlotCalendar } from "../components/SlotCalendar";
 import { useT } from "../i18n/context";
 
 export default function RescheduleScreen() {
@@ -15,7 +15,6 @@ export default function RescheduleScreen() {
   const appointment =
     (location.state as { appointment?: AppointmentOut } | null)?.appointment ?? null;
 
-  const [slotId, setSlotId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const slots = useQuery({
@@ -60,30 +59,12 @@ export default function RescheduleScreen() {
         <p className="muted">{t("booking.noSlots")}</p>
       ) : null}
 
-      <div className="slots">
-        {slots.data?.map((slot) => (
-          <button
-            key={slot.id}
-            className={slot.id === slotId ? "slot slot--active" : "slot"}
-            onClick={() => setSlotId(slot.id)}
-            type="button"
-          >
-            <span className="slot__date">{formatDate(slot.starts_at)}</span>
-            <span className="slot__time">{formatTime(slot.starts_at)}</span>
-          </button>
-        ))}
-      </div>
+      <SlotCalendar
+        slots={slots.data ?? []}
+        onPick={(value) => reschedule.mutate(value.id)}
+      />
 
       {error ? <p className="error">{error}</p> : null}
-
-      <button
-        className="button button--primary button--big"
-        disabled={!slotId || reschedule.isPending}
-        onClick={() => slotId && reschedule.mutate(slotId)}
-        type="button"
-      >
-        {reschedule.isPending ? t("common.loading") : t("common.confirm")}
-      </button>
     </div>
   );
 }

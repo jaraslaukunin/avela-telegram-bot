@@ -24,6 +24,9 @@ export default function LandingScreen() {
         >
           {t("landing.openInTelegram")}
         </a>
+        <a className="button button--secondary button--big" href="/statuspage/">
+          {t("landing.status")}
+        </a>
       </header>
 
       <section className="landing__features">

@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api } from "../../api/client";
-import { formatDate, formatDateTime, formatTime } from "../../format";
+import { SlotCalendar } from "../../components/SlotCalendar";
+import { formatDateTime } from "../../format";
 import { useT } from "../../i18n/context";
 
 export default function AdminAppointmentsScreen() {
@@ -194,22 +195,10 @@ export default function AdminAppointmentsScreen() {
               {reschedulingId === appointment.id ? (
                 <>
                   <p className="muted">{t("admin.chooseNewSlot")}</p>
-                  <div className="slots slots--scroll">
-                    {rescheduleSlots.data?.map((value) => (
-                      <button
-                        key={value.id}
-                        className={value.id === newSlotId ? "slot slot--active" : "slot"}
-                        onClick={() => setNewSlotId(value.id)}
-                        type="button"
-                      >
-                        <span className="slot__date">{formatDate(value.starts_at)}</span>
-                        <span className="slot__time">{formatTime(value.starts_at)}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {rescheduleSlots.data && rescheduleSlots.data.length === 0 ? (
-                    <p className="muted">{t("booking.noSlots")}</p>
-                  ) : null}
+                  <SlotCalendar
+                    slots={rescheduleSlots.data ?? []}
+                    onPick={(value) => setNewSlotId(value.id)}
+                  />
                   <button
                     className="button button--primary"
                     disabled={!newSlotId || reschedule.isPending}
