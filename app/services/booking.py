@@ -17,6 +17,7 @@ from app.models.patient import Patient
 from app.models.schedule import Slot
 from app.models.user import User
 from app.services import audit, notifications
+from app.services.users import get_or_create_default_patient
 
 AppointmentContext = tuple[Appointment, Slot, Doctor, Service, Branch]
 
@@ -188,12 +189,16 @@ async def cancel_appointment(
     if context is None:
         raise AppointmentNotFoundError("Запись не найдена")
 
-    appointment, _slot, _doctor, _service, branch = context
+    appointment, slot, _doctor, _service, branch = context
 
     if not appointment.is_active:
         raise BookingError("Запись уже отменена или перенесена")
 
-    if not appointment.is_cancellable_by_patient(branch, now):
+    # Дедлайн считаем по времени слота из контекста: обращение к
+    # appointment.slot вызвало бы ленивую загрузку в async-сессии.
+    if now >= branch.cancel_deadline(
+        slot.starts_at, deadline_hours=Appointment.PATIENT_CANCEL_DEADLINE_HOURS
+    ):
         raise DeadlinePassedError(
             "Самостоятельная отмена недоступна менее чем за 2 часа до приёма. "
             f"Обратитесь в клинику: {branch.phone or branch.name}"
@@ -240,12 +245,25 @@ async def _load_patient_profile(
     session: AsyncSession,
     appointment: Appointment,
 ) -> Patient:
-    """Профиль пациента записи — нужен для проверки пересечений при переносе."""
-    if appointment.patient_profile_id is None:
-        raise BookingError("У записи нет привязки к пациенту")
-    patient = await session.get(Patient, appointment.patient_profile_id)
-    if patient is None:
-        raise BookingError("Пациент не найден")
+    """Профиль пациента записи — нужен для проверки пересечений при переносе.
+
+    Записи, созданные до появления профилей пациентов, не имеют
+    patient_profile_id: для них берём (или создаём) профиль владельца
+    аккаунта и привязываем к записи — иначе перенос таких записей невозможен.
+    """
+    if appointment.patient_profile_id is not None:
+        patient = await session.get(Patient, appointment.patient_profile_id)
+        if patient is not None:
+            return patient
+
+    user = await session.get(User, appointment.patient_id)
+    if user is None:
+        raise BookingError("Не удалось определить пациента записи")
+
+    patient = await get_or_create_default_patient(session, user)
+    appointment.patient_profile_id = patient.id
+    if not appointment.patient_full_name:
+        appointment.patient_full_name = patient.full_name
     return patient
 
 
@@ -294,12 +312,14 @@ async def reschedule_appointment(
     if context is None:
         raise AppointmentNotFoundError("Запись не найдена")
 
-    appointment, _old_slot, _doctor, _service, branch = context
+    appointment, old_slot, _doctor, _service, branch = context
 
     if not appointment.is_active:
         raise BookingError("Запись уже отменена или перенесена")
 
-    if not appointment.is_cancellable_by_patient(branch, now):
+    if now >= branch.cancel_deadline(
+        old_slot.starts_at, deadline_hours=Appointment.PATIENT_CANCEL_DEADLINE_HOURS
+    ):
         raise DeadlinePassedError(
             "Самостоятельный перенос недоступен менее чем за 2 часа до приёма. "
             f"Обратитесь в клинику: {branch.phone or branch.name}"

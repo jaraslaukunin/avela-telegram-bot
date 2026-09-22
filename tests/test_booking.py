@@ -219,6 +219,32 @@ async def test_rescheduled_appointment_is_hidden_from_patient_list(
     assert len(visible_ids) == 1
 
 
+async def test_legacy_appointment_without_patient_profile_still_works(
+    db_session: AsyncSession, booking_catalog: dict[str, uuid.UUID]
+) -> None:
+    """Записи, созданные до появления пациентов, должны переноситься и отменяться.
+
+    Регрессия: перенос падал с «У записи нет привязки к пациенту»,
+    а отмена — при обращении к relationship slot в async-сессии.
+    """
+    user = await _get_user(db_session, booking_catalog["patient_id"])
+    person = await _get_patient(db_session, booking_catalog["patient_profile_id"])
+
+    appointment = await book_slot(db_session, user, person, booking_catalog["far_slot_id"])
+    appointment.patient_profile_id = None
+    appointment.patient_full_name = None
+    await db_session.commit()
+
+    moved = await reschedule_appointment(
+        db_session, user.id, appointment.id, booking_catalog["other_far_slot_id"]
+    )
+    assert moved.status == "active"
+    assert moved.patient_profile_id == person.id  # профиль восстановлен автоматически
+
+    cancelled = await cancel_appointment(db_session, user.id, moved.id)
+    assert cancelled.status == "cancelled"
+
+
 async def test_cancel_nonexistent_appointment(
     db_session: AsyncSession, booking_catalog: dict[str, uuid.UUID]
 ) -> None:
