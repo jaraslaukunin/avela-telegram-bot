@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
 
 from app.core.deps import get_current_user
 from app.core.rate_limit import RateLimiter
@@ -86,6 +87,7 @@ async def my_appointments(
             Appointment.patient_id == current.id,
             # Перенесённые записи — история: в «Моих записях» только актуальное.
             Appointment.status != "rescheduled",
+            Slot.ends_at >= func.now(),
         )
         .order_by(Slot.starts_at.desc())
         .limit(50)

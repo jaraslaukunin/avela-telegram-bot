@@ -21,10 +21,17 @@ export default function MyAppointmentsScreen() {
     queryFn: api.myAppointments,
   });
 
+  const visibleAppointments = (appointments.data ?? []).filter((appointment) => {
+    const endsAt = new Date(appointment.ends_at);
+
+    return Number.isNaN(endsAt.getTime()) || endsAt >= new Date();
+  });
+
   const cancel = useMutation({
     mutationFn: (appointmentId: string) => api.cancel(appointmentId),
     onSuccess: async () => {
       setError("");
+      setConfirmingId(null);
       await queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
     onError: (mutationError: unknown) =>
@@ -38,22 +45,32 @@ export default function MyAppointmentsScreen() {
       {state?.booked ? <p className="success">{t("booking.success")}</p> : null}
       {error ? <p className="error">{error}</p> : null}
       {appointments.isLoading ? <Loading /> : null}
-      {appointments.data && appointments.data.length === 0 ? (
+
+      {appointments.data && visibleAppointments.length === 0 ? (
         <p className="muted">{t("appointments.empty")}</p>
       ) : null}
 
-      {appointments.data?.map((appointment) => {
+      {visibleAppointments.map((appointment) => {
         const cancellable =
           appointment.status === "active" && isCancellable(appointment.cancellable_until);
 
         return (
           <article className="card" key={appointment.id}>
             <h3 className="card__title">{appointment.service_name}</h3>
+
+            {appointment.patient_full_name ? (
+              <p className="card__meta">
+                {t("appointments.patient")}: <strong>{appointment.patient_full_name}</strong>
+              </p>
+            ) : null}
+
             <p className="card__meta">{appointment.doctor_name}</p>
+
             <p className="card__meta">
               {appointment.branch_name}
               {appointment.branch_address ? `, ${appointment.branch_address}` : ""}
             </p>
+
             <p className="card__time">
               {formatDateTime(appointment.starts_at, appointment.branch_timezone)}
             </p>
@@ -68,6 +85,7 @@ export default function MyAppointmentsScreen() {
                   confirmingId === appointment.id ? (
                     <>
                       <p className="muted">{t("appointments.cancelConfirm")}</p>
+
                       <button
                         className="button button--danger"
                         disabled={cancel.isPending}
@@ -76,8 +94,10 @@ export default function MyAppointmentsScreen() {
                       >
                         {t("common.yesCancel")}
                       </button>
+
                       <button
                         className="button button--secondary"
+                        disabled={cancel.isPending}
                         onClick={() => setConfirmingId(null)}
                         type="button"
                       >
@@ -93,10 +113,13 @@ export default function MyAppointmentsScreen() {
                       >
                         {t("appointments.cancel")}
                       </button>
+
                       <button
                         className="button button--secondary"
                         onClick={() =>
-                          navigate("/appointments/reschedule", { state: { appointment } })
+                          navigate("/appointments/reschedule", {
+                            state: { appointment },
+                          })
                         }
                         type="button"
                       >

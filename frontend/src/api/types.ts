@@ -70,6 +70,7 @@ export interface AppointmentOut {
   service_id: string;
   starts_at: string;
   ends_at: string;
+  patient_full_name: string;
   doctor_name: string;
   service_name: string;
   branch_name: string;

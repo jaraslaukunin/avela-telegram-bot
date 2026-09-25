@@ -23,3 +23,20 @@ def get_main_menu() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         input_field_placeholder="Запись — в приложении",
     )
+
+
+def get_phone_request_menu() -> ReplyKeyboardMarkup:
+    """Клавиатура Telegram для добровольной передачи номера владельца аккаунта."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text="📱 Поделиться номером",
+                    request_contact=True,
+                )
+            ]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+        input_field_placeholder="Нажмите кнопку, чтобы поделиться номером",
+    )
