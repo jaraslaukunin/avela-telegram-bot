@@ -1,185 +1,193 @@
-# 🩺 Avela — Telegram-бот предварительной записи к врачу
+<div align="center">
 
-[![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Telegram Bot](https://img.shields.io/badge/Telegram%20Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://core.telegram.org/bots)
-[![Status](https://img.shields.io/badge/Status-In%20Development-F59E0B?style=for-the-badge)]()
-[![Repository](https://img.shields.io/badge/GitHub-avela--telegram--bot-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jaraslaukunin/avela-telegram-bot)
+<img src="logo.svg" alt="Avela" width="110" />
 
-Avela — Telegram-бот и Telegram Mini App для предварительной записи пациентов
-в несколько медицинских сетей. Одна установка обслуживает несколько
-независимых сетей (multi-tenant), поэтому данные и права строго разделены
-по сети и филиалу.
+# Avela — запись к врачу в Telegram
 
-**Статус:** ранний прототип. Сейчас в репозитории — каркас aiogram-бота
-(polling, профиль в памяти). FastAPI API, webhook, БД, Mini App, CI/CD и
-деплой — в плане ниже.
+**Telegram Mini App и бот предварительной записи в медицинские сети: FastAPI, aiogram 3 и PostgreSQL с разделением по тенантам.**
 
-## Что уже работает
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![aiogram](https://img.shields.io/badge/aiogram-3-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://aiogram.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Telegram Mini App](https://img.shields.io/badge/Telegram_Mini_App-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://core.telegram.org/bots/webapps)
 
-- бот в чате: `/start`, «Записаться на приём» (клиника → услуга → филиал →
-  врач или «любой свободный врач» → слот → подтверждение), «Мои записи»
-  (отмена и перенос с дедлайном 2 часа), понятные ответы, когда данных или
-  свободных слотов нет, и заглушка на нераспознанные сообщения;
-- FastAPI: `/health`, `/ready`, публичный `/status` (состояние компонентов);
-- webhook-роут `/telegram/webhook` с проверкой
-  `X-Telegram-Bot-Api-Secret-Token` (включается через `WEBHOOK_MODE=true`);
-- серверная валидация Telegram Mini App initData: HMAC-SHA256,
-  constant-time сравнение, срок годности `auth_date`, разбор пользователя
-  (`app/core/security/initdata.py`);
-- вход через initData → короткоживущий JWT Avela, профиль `/auth/me`;
-- каталог: сети, филиалы, услуги, врачи, свободные слоты;
-- записи пациента: создание, свои записи, отмена и перенос с дедлайном
-  2 часа (в часовом поясе филиала), защита от гонок и пересечений;
-- админ-API `/admin/*`: роли, изоляция сетей, врачи, шаблоны расписания
-  с генерацией слотов, отмена записей администратором, аудит действий;
-- worker уведомлений: очередь в БД, дедупликация, отправка сразу после
-  записи, напоминания за 24ч и 2ч, гашение напоминаний отменённых записей,
-  heartbeat для status page;
-- удаление аккаунта по запросу пациента: отмена активных записей,
-  анонимизация ПДн, запись в аудит (`POST /privacy/delete-me`);
-- защита API: строгий CORS, rate limiting, security headers, request id
-  в логах и ответах;
-- Telegram Mini App (React + TypeScript): запись, мои записи, перенос,
-  профиль, i18n ru/en/be-Latn;
-- status page: `status/index.html`, читает `/status`.
+[![License: Source-Available](https://img.shields.io/badge/License-Source--Available-orange?style=for-the-badge)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-avela--telegram--bot-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jaraslaukunin/avela-telegram-bot)
 
-## Админ-API
+**[Возможности](#возможности)** · [Архитектура](#архитектура) · [Быстрый старт](#быстрый-старт) · [База данных](#база-данных-и-миграции) · [Уведомления](#уведомления-и-worker) · [Деплой](#деплой) · [Документация](#документация) · [Лицензия](#лицензия)
 
-Все `/admin/*` требуют роль администратора (проверяется на backend
-для каждого действия):
+</div>
 
-- сети: создание (только администратор Avela), просмотр, переименование,
-  активация и блокировка;
-- филиалы: создание в своей сети, обновление, назначение администратора
-  филиала; часовой пояс филиала — IANA identifier (по умолчанию
-  `Europe/Moscow`);
-- услуги: создание и обновление в своей сети (длительность приёма — из услуги);
-- врачи: создание в своём филиале, привязка услуг;
-- расписание: регулярные шаблоны (день недели + интервал) и генерация
-  слотов на период (повторная генерация идемпотентна);
-- записи: просмотр по своим филиалам, отмена администратором (без лимита
-  2 часов).
+---
 
-Границы видимости: администратор филиала — только свои филиалы,
-администратор сети — только своя сеть, администратор Avela — всё.
-Ресурс вне зоны видимости отдаёт 404, чтобы не раскрывать чужие данные.
-Каждое административное изменение пишется в `audit_logs`.
+## О проекте
 
-## Роли
+**Avela** — сервис предварительной записи к врачу, который живёт целиком в Telegram: пациент открывает
+Mini App, выбирает специалиста, филиал и свободное время, а бот присылает талон и напоминания.
+Одна установка обслуживает **несколько независимых медицинских сетей** — данные, роли и видимость
+жёстко разделены по сети и филиалу.
 
-- Пациент — запись к врачу, свои записи, уведомления;
-- Администратор филиала — только свои филиалы;
-- Администратор сети — только своя сеть;
-- Администратор Avela — все сети, аудит, системные настройки.
+Бот намеренно не ведёт диалог о записи: вся логика — в Mini App и API, а чат остаётся каналом
+уведомлений. Так сценарий записи существует в одном месте и не расходится между двумя интерфейсами.
 
-Права проверяются на backend при каждом защищённом действии.
+**Статус:** работающий MVP. В репозитории собраны бот, FastAPI-API, worker уведомлений,
+Mini App на React, SQL-миграции, тесты, CI и обвязка деплоя на VPS. Выкат на сервер — ручной
+workflow с обязательным подтверждением, поэтому «живой» инстанс зависит от настроенных
+GitHub Secrets, а не от самого репозитория.
 
-## Использование и ограничения
+> ⚠️ Сервис предназначен только для **предварительной записи**. Он не является медицинским изделием,
+> не ставит диагнозы, не заменяет врача, регистратуру и экстренную помощь. При угрозе жизни или
+> здоровью — обращайтесь в экстренные службы.
 
-Avela предназначен исключительно для **предварительной записи** на приём к врачу.
+## Возможности
 
-- бот не является медицинским изделием;
-- бот не заменяет врача, регистратуру или экстренную медицинскую помощь;
-- информация в боте не является медицинской консультацией;
-- при угрожающем жизни или здоровью состоянии — обращайтесь в экстренные службы;
-- запись через бота может требовать подтверждения медицинской организацией.
+### Telegram Mini App (пациент)
 
-## Стек
+- поиск специалиста сразу **по всем сетям**: город, цена приёма и расстояние до филиала
+  (формула гаверсинуса), ближайшее свободное время;
+- запись по шагам: услуга → филиал → врач **или «любой свободный врач»** → слот → подтверждение;
+  если телефона нет, бот сначала просит поделиться номером и только потом показывает кнопку приложения;
+- «Мои записи»: отмена и перенос — не позже чем за **2 часа** до приёма по времени филиала,
+  с подтверждением действия;
+- **несколько пациентов на один Telegram-аккаунт** (например, родитель записывает себя и детей);
+  пересечения приёмов считаются на уровне пациента, а не аккаунта;
+- профиль, удаление аккаунта по запросу, интерфейс на русском, English и беларускай лацінцы.
 
-Backend (Python 3.12):
+### Telegram-бот
 
-- FastAPI — HTTP API и Telegram webhook в одном приложении;
-- aiogram 3 — webhook и уведомления;
-- SQLAlchemy 2 (async) + asyncpg;
-- Pydantic Settings;
-- APScheduler — напоминания, отдельный singleton worker;
-- pytest, pytest-asyncio, httpx.
+- `/start`: знакомство, добровольная передача номера кнопкой `request_contact`;
+- меню: «📱 Открыть Avela» (кнопка WebApp) и «ℹ️ Информация»;
+- любой другой текст или callback ведут в приложение — бот не изображает диалог записи;
+- присылает **талон-картинку** (PNG: дата, услуга, врач, филиал, адрес, цена, код записи)
+  и напоминания о приёме.
 
-Frontend (монорепозиторий, каталог `frontend/`):
+### API и backend
 
-- React, TypeScript, Vite, Telegram Web Apps SDK (типы `window.Telegram.WebApp`
-  объявлены локально — внешний npm-пакет не нужен);
-- React Router, TanStack Query;
-- i18n: русский, English, беларуская лацінка (be-Latn);
-- Vitest (React Testing Library подключена для компонентных тестов).
+- `POST /auth/telegram` — валидация Telegram Mini App initData (HMAC-SHA256, constant-time
+  сравнение, срок годности `auth_date`) и выдача короткоживущего JWT Avela; `GET /auth/me` — профиль;
+- каталог: сети, филиалы, услуги, врачи, свободные слоты; поиск предложений по специалисту и городу
+  с ценой и расстоянием;
+- записи: создание, список своих, отмена, перенос; защита от гонки за слот и от пересечений;
+- админ-API `/admin/*`: сети, филиалы, услуги, врачи, шаблоны расписания с генерацией слотов,
+  календарь врача, отмена и перенос записей, сообщение пациенту от имени бота, аудит действий;
+- пациенты аккаунта: `GET/POST /patients`, `DELETE /patients/{id}`;
+- `POST /privacy/delete-me` — анонимизация аккаунта;
+- `GET /health`, `GET /ready`, публичный `GET /status` (состояние API, БД, воркера и доставки Telegram);
+- `POST /telegram/webhook` с проверкой `X-Telegram-Bot-Api-Secret-Token` (включается `WEBHOOK_MODE=true`);
+- защита: строгий CORS, rate limiting, security headers, request id в логах и ответах.
 
-Инфраструктура:
+### Уведомления
 
-- Supabase: PostgreSQL, Storage (фото врачей), CLI SQL-миграции;
-- Docker Compose, Nginx, Ubuntu 24.04 LTS VPS;
-- GitHub Actions; DNS — Cloudflare.
-
-Миграции схемы — только SQL-файлы Supabase CLI (Alembic не используем).
-Авторизация — Telegram Mini App initData (не Supabase Auth).
+- очередь в таблице `notifications`, дедупликация уникальным индексом `(appointment_id, kind)`;
+- виды: `booking_created`, `reminder_24h`, `reminder_2h`, `cancelled`, `rescheduled`;
+- отправка — отдельным singleton-процессом воркера, а не из web-процесса;
+- напоминания отменённых и перенесённых записей переводятся в `skipped`;
+- heartbeat воркера питает публичную status page (`status/index.html`, обновление раз в 30 секунд;
+  публичный JSON — `GET /status`), которая не раскрывает секреты, строки подключения и данные пациентов.
 
 ## Архитектура
 
-Модульный монолит. FastAPI и aiogram webhook живут в одном процессе,
-напоминания — в отдельном singleton-контейнере worker. Бизнес-логика —
-в сервисном слое, а не в хендлерах.
+Модульный монолит: FastAPI и aiogram webhook живут в одном процессе, напоминания — в отдельном
+контейнере worker. Бизнес-логика вынесена в сервисный слой, а не в хендлеры.
 
 ```text
 app/
   main.py         # FastAPI: lifespan, webhook, middleware
   config.py       # настройки (pydantic-settings)
-  api/            # роутеры: auth, catalog, appointments, admin, privacy, health
+  api/            # роутеры: auth, catalog, offers, appointments, patients, admin, privacy, health
   core/           # security (initdata, jwt), deps, middleware, rate_limit, logging, roles
-  services/       # use cases: booking, scheduling, notifications, privacy, audit, permissions
-  models/         # SQLAlchemy: каталог, расписание, записи, уведомления, аудит
-  bot/            # aiogram: webhook-роутер, хендлеры, клавиатуры
-  worker/         # APScheduler: отправка уведомлений и напоминаний
+  services/       # use cases: booking, scheduling, notifications, messaging, privacy, audit, permissions
+  models/         # SQLAlchemy: каталог, расписание, записи, пациенты, уведомления, аудит
+  bot/            # aiogram: webhook-роутер, хендлеры, клавиатуры, рендер талона
+  worker/         # APScheduler: отправка уведомлений, heartbeat
 frontend/         # Telegram Mini App (React + TypeScript + Vite)
 status/           # публичная status page (статика)
-supabase/         # SQL-миграции, RLS, config.toml
-deploy/           # Nginx-конфиг, сертификаты
-.github/workflows # CI и ручной деплой
+supabase/         # SQL-миграции и config.toml
+deploy/           # Nginx-конфиг, setup-vps.sh, пошаговая инструкция
+.github/workflows # ci.yml и deploy.yml
 ```
 
-Время в БД — UTC; часовой пояс филиала — IANA identifier (по умолчанию
-Europe/Moscow). Самостоятельная отмена/перенос записи — не позже чем
-за 2 часа до приёма по времени филиала.
+Время в БД — **UTC**, часовой пояс филиала — IANA identifier (по умолчанию `Europe/Moscow`).
+Самостоятельная отмена и перенос — не позже чем за 2 часа до приёма. Пересечения слотов врача и
+приёмов пациента запрещены на уровне PostgreSQL (exclusion constraint, частичный уникальный индекс,
+триггер), а не только в коде.
 
-## Локальный запуск
+## Стек
 
-Нужен Python 3.12.
+- **Backend:** Python 3.12, FastAPI, aiogram 3, SQLAlchemy 2 (async) + asyncpg, Pydantic Settings,
+  APScheduler, Pillow (рендер талона), PyJWT.
+- **Frontend:** React 18, TypeScript 5.7, Vite 5, React Router, TanStack Query, собственный мини-i18n
+  (ru / en / be-Latn), Vitest + Testing Library.
+- **База:** Supabase PostgreSQL; миграции — только SQL-файлы Supabase CLI, Alembic не используется.
+- **Инфраструктура:** Docker Compose, Nginx, Ubuntu 24.04 VPS, GitHub Actions, Cloudflare DNS.
+
+## Быстрый старт
+
+### Требования
+
+- Python **3.12**;
+- Node.js 20 (для Mini App; в CI используется 20);
+- Docker — только если нужна локальная Postgres (можно работать сразу с Supabase).
+
+### Backend
 
 ```bash
+git clone https://github.com/jaraslaukunin/avela-telegram-bot.git
+cd avela-telegram-bot
+
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env      # вписать BOT_TOKEN
+
+cp .env.example .env      # вписать BOT_TOKEN, DATABASE_URL, JWT_SECRET
 python -m app.main
 ```
 
-Команда поднимает FastAPI (uvicorn) на `127.0.0.1:8000` — там живут
-`/health`, `/ready`, `/status` и webhook-роут. Параллельно бот работает
-на polling (webhook удаляется при старте — удобно для разработки).
-В production (`WEBHOOK_MODE=true`) обновления принимает webhook на Nginx.
+Команда поднимает uvicorn на `127.0.0.1:8000`: там `/health`, `/ready`, `/status` и webhook-роут.
+Параллельно бот работает на polling (при старте webhook удаляется — удобно для разработки).
+В production (`WEBHOOK_MODE=true`) обновления принимает webhook через Nginx.
 
-Отдельно запускаются worker и Mini App:
-
-```bash
-python -m app.worker.main        # уведомления и напоминания (один процесс!)
-
-cd frontend && npm install && npm run dev   # Mini App на 127.0.0.1:5173
-```
-
-## Разработка
+### Worker и Mini App
 
 ```bash
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-pytest -q          # тесты (без TEST_DATABASE_URL интеграционные пропускаются)
-ruff check .       # lint
-mypy app           # проверка типов
+python -m app.worker.main          # уведомления и напоминания — ровно один процесс!
 
 cd frontend
-npm run typecheck  # tsc
-npm run test       # vitest
-npm run build      # сборка Mini App
+cp .env.example .env               # VITE_API_URL=http://127.0.0.1:8000
+npm install
+npm run dev                        # Mini App на 127.0.0.1:5173
 ```
 
-## Локальная база данных
+### Переменные окружения
+
+Полный список — в `.env.example`; секреты живут только в `.env` и в секретах сервера.
+
+| Переменная | Назначение |
+| --- | --- |
+| `BOT_TOKEN` | Токен бота от @BotFather (обязателен) |
+| `WEBHOOK_MODE` | `false` — polling, `true` — webhook |
+| `WEBHOOK_SECRET` | Секрет заголовка `X-Telegram-Bot-Api-Secret-Token` (обязателен при webhook) |
+| `WEBHOOK_BASE_URL` | Публичный префикс API, например `https://avela.jaraslau.dev/api` |
+| `API_HOST`, `API_PORT` | Адрес и порт uvicorn (по умолчанию `127.0.0.1:8000`) |
+| `DATABASE_URL` | Строка подключения с драйвером asyncpg |
+| `TEST_DATABASE_URL` | БД для интеграционных тестов |
+| `JWT_SECRET` | Секрет JWT, минимум 32 символа |
+| `JWT_TTL_SECONDS` | Время жизни JWT Avela (по умолчанию 604800 = 7 дней) |
+| `CORS_ORIGINS` | Разрешённые домены Mini App через запятую |
+| `NOTIFIER_INTERVAL_SECONDS` | Как часто worker проверяет очередь (по умолчанию 30) |
+| `MINI_APP_URL` | Публичный адрес Mini App для кнопки WebApp в боте |
+| `SUPABASE_URL` | Адрес проекта Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Ключ service role — только серверным компонентам |
+| `VITE_API_URL` | Адрес API для фронтенда (в `frontend/.env.example`) |
+
+## База данных и миграции
+
+Схема управляется только SQL-миграциями в `supabase/migrations/` (Supabase CLI).
+
+**Локальная Postgres в Docker:**
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d db
@@ -190,61 +198,25 @@ done
 TEST_DATABASE_URL=postgresql+asyncpg://avela:avela@localhost:5432/avela pytest -q
 ```
 
-Схема управляется только SQL-миграциями в `supabase/migrations/`
-(Supabase CLI; Alembic не используем). Пересечения слотов врача и записей
-пациента запрещены на уровне PostgreSQL (exclusion constraint, частичный
-уникальный индекс, триггер), а не только в коде.
-
-## Подключение Supabase
-
-Проект: `nctnayzkbcgobanxyabv` (`https://nctnayzkbcgobanxyabv.supabase.co`).
-
-Миграции схемы — SQL-файлы в `supabase/migrations/`, применяются Supabase CLI
-(Alembic не используем). Разово на машине разработчика:
+**Сразу с облачным Supabase (без локальной БД):**
 
 ```bash
-brew install supabase/tap/supabase   # если CLI ещё не установлен
 supabase login
 supabase link --project-ref nctnayzkbcgobanxyabv
 supabase db push
+
+# строку подключения взять в дашборде: Connect → Session pooler (драйвер asyncpg)
+# DATABASE_URL=postgresql+asyncpg://postgres.<ref>:<пароль>@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
 ```
 
-Ключи (`anon`, `service_role`) — в дашборде Supabase → Settings → API.
-`service_role` живёт только в окружении backend (`.env`/секреты сервера)
-и никогда не попадает в браузер. Строка подключения к production БД —
-дашборд → Connect → Session pooler.
-
-RLS включён на всех таблицах deny-by-default: backend ходит как владелец
-схемы, прямой доступ через Supabase REST/anon ничего не видит.
-
-## Работа без локальной БД (сразу с Supabase)
-
-Docker и локальная Postgres не обязательны: приложение умеет работать прямо
-с облачным Supabase.
-
-```bash
-# 1. Применить миграции (из корня репозитория)
-supabase link --project-ref nctnayzkbcgobanxyabv
-supabase db push
-
-# 2. Взять строку подключения: дашборд → Connect → Session pooler
-#    и прописать её в .env (важно: драйвер asyncpg)
-#    DATABASE_URL=postgresql+asyncpg://postgres.nctnayzkbcgobanxyabv:ПАРОЛЬ@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
-
-# 3. Запустить приложение — оно пойдёт в облако
-python -m app.main
-python -m app.worker.main
-```
-
-`service_role` key — только серверным компонентам (backend и worker).
-В frontend он не попадает никогда. Публикуемый ключ (`sb_publishable_...`)
-для клиента в MVP не нужен: Mini App общается только с нашим API.
+RLS включён на всех таблицах по принципу deny-by-default: backend ходит как владелец схемы,
+прямой доступ через Supabase REST/anon не видит ничего. Ключ `service_role` не попадает
+в браузер никогда.
 
 ## Первые шаги в пустой базе
 
-Свежая база пустая: сеть, филиал, услугу, врача и слоты создают администраторы
-через API. Первого администратора Avela через API назначить нельзя — он
-появляется служебной командой:
+Свежая база пустая: сеть, филиал, услугу, врача и слоты создают администраторы через API.
+Первого администратора Avela через API назначить нельзя — он появляется служебной командой:
 
 ```bash
 python -m app.cli show-state                  # что уже есть в базе
@@ -252,102 +224,108 @@ python -m app.cli grant-admin <telegram_id>   # роль avela_admin (после
 python -m app.cli seed-demo                   # демо-сеть, врач и слоты на 2 недели
 ```
 
-`grant-admin` требует, чтобы пользователь уже существовал в базе: пусть он один
-раз войдёт в Mini App (или напишет боту `/start`), и роль выдаётся по его
-`telegram_id`. `seed-demo` идемпотентен: повторный запуск не дублирует данные,
-а добирает недостающие слоты.
+`grant-admin` требует, чтобы пользователь уже существовал: пусть он один раз откроет Mini App
+или напишет боту `/start`. `seed-demo` идемпотентен — повторный запуск не дублирует данные.
+
+## Роли и доступ
+
+| Роль | Зона видимости |
+| --- | --- |
+| `patient` | Свои записи и пациенты аккаунта |
+| `branch_admin` | Только назначенные филиалы |
+| `network_admin` | Только своя сеть |
+| `avela_admin` | Все сети, аудит, системные настройки |
+
+Права проверяются на backend для каждого защищённого действия; ресурс вне зоны видимости отдаёт
+404, чтобы не раскрывать чужие данные. Каждое административное изменение пишется в `audit_logs`.
 
 ## Уведомления и worker
 
-- уведомления не отправляются из web-процесса: сервисный слой только кладёт
-  их в таблицу `notifications` со статусом `pending`;
-- отдельный singleton-процесс `python -m app.worker.main` каждые
-  `NOTIFIER_INTERVAL_SECONDS` секунд забирает готовые и отправляет;
-- виды: `booking_created`, `reminder_24h`, `reminder_2h`, `cancelled`,
-  `rescheduled`; дедупликация — уникальный индекс `(appointment_id, kind)`;
-- напоминания отменённых и перенесённых записей переводятся в `skipped`,
-  чтобы пациент не получил напоминание об отменённом приёме;
-- worker отмечает heartbeat в `service_heartbeats` — это питает status page.
+- уведомления не отправляются из web-процесса: сервисный слой только кладёт их в `notifications`
+  со статусом `pending`;
+- `python -m app.worker.main` каждые `NOTIFIER_INTERVAL_SECONDS` секунд забирает готовые и отправляет;
+- «Запись за час до приёма» не получит напоминание за 24 часа — такое уведомление сразу помечается
+  `skipped`, а не висит в очереди;
+- worker отмечает heartbeat в `service_heartbeats` — это и есть источник данных для status page.
 
 ## Приватность и удаление данных
 
 `POST /privacy/delete-me` (авторизованный пациент) выполняет:
 
-1. отмену всех активных записей (пациент удаляет данные — приёмы не остаются в силе);
+1. отмену всех активных записей — пациент удаляет данные, приёмы не остаются в силе;
 2. перевод незакрытых уведомлений в `skipped`;
 3. затирание персональных полей (имя, username, телефон, язык);
-4. замену `telegram_id` на служебный отрицательный — новое обращение создаст
-   новый аккаунт;
+4. замену `telegram_id` на служебный отрицательный — новое обращение создаст новый аккаунт;
 5. деактивацию аккаунта и запись `user.anonymize` в `audit_logs`.
 
-Клинические данные (диагнозы, исследования) мы не храним вообще, поэтому
-анонимизация ПДн и есть удаление. Юридическое соответствие требованиям
-законодательства требует отдельной проверки юристом.
+Клинические данные (диагнозы, исследования) сервис не хранит вообще, поэтому анонимизация ПДн
+и есть удаление. Юридическое соответствие требованиям законодательства требует отдельной проверки
+юристом.
 
-## Status page
+## Разработка и качество
 
-`status/index.html` — статика для `avela.jaraslau.dev/status/`. Показывает
-состояние API, БД, worker'а и способа доставки Telegram, обновляется каждые
-30 секунд. Публичный JSON — `GET /status`. Страница не раскрывает секреты,
-строки подключения, внутренние адреса и данные пациентов.
+```bash
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest -q          # без TEST_DATABASE_URL интеграционные тесты пропускаются
+ruff check .       # lint
+mypy app tests     # проверка типов
 
-## Переменные окружения
+cd frontend
+npm run typecheck  # tsc
+npm run test       # vitest
+npm run build      # сборка Mini App
+```
 
-См. `.env.example`. Секреты (BOT_TOKEN, ключи Supabase, webhook secret)
-живут только в `.env` и в секретах окружения — в репозиторий не попадают.
+- CI (GitHub Actions): `lint`, `typecheck`, `tests` с сервисом Postgres 16 и применением миграций,
+  отдельная джоба `frontend` (typecheck → vitest → build);
+- в репозитории 107 тестовых функций в 20 файлах `tests/` и 14 тестов фронтенда: initData, JWT, права
+  и tenant isolation, бронирование и гонка за слот, пересечения приёмов, лимит 2 часов, уведомления
+  и дедупликация, worker, приватность, rate limiting, i18n и API-клиент;
+- падение pytest печатает хвост лога в аннотациях check-run — видно без доступа к логам.
 
-Ключевые переменные: `BOT_TOKEN`, `DATABASE_URL` (asyncpg), `JWT_SECRET`
-(минимум 32 символа), `JWT_TTL_SECONDS`, `WEBHOOK_MODE` + `WEBHOOK_SECRET` +
-`WEBHOOK_BASE_URL`, `CORS_ORIGINS` (домены Mini App через запятую),
-`NOTIFIER_INTERVAL_SECONDS`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+## Документация
 
-## Качество и CI
-
-- lint (ruff), type-check (mypy), тесты — GitHub Actions; отдельная джоба
-  фронтенда: `npm run typecheck`, `vitest`, `npm run build`;
-- автоматизированные тест-кейсы: валидация initData, JWT-сессии, права
-  и tenant isolation, бронирование и гонка за слот, пересечения записей
-  пациента, лимит 2 часов, уведомления и дедупликация, worker, приватность,
-  middleware и rate limiting, i18n и API-клиент Mini App;
-- падение pytest печатает вывод в аннотациях check-run — видно без доступа
-  к логам;
-- staging/production deploy — только вручную и после подтверждения.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — полное описание системы: домен, слои, инварианты, решения.
+- [CODE.md](CODE.md) — карта кода: что где лежит и зачем.
+- [deploy/README.md](deploy/README.md) — пошаговое первое развёртывание на VPS.
 
 ## Деплой
 
-- VPS Ubuntu 24.04, Docker Compose: backend, worker, статика Mini App, Nginx;
-- БД и Storage — Supabase (локальная БД в production не поднимается);
-- webhook: `POST https://avela.jaraslau.dev/api/telegram/webhook`;
-- всё на одном домене `avela.jaraslau.dev`: Mini App — `/`,
-  API — `/api/*`, status page — `/status/`;
-- DNS — Cloudflare, TLS Full (strict).
+- VPS Ubuntu 24.04 LTS, Docker Compose: `api`, `worker`, статика Mini App, Nginx;
+- БД и Storage — внешний Supabase, локальная Postgres в production не поднимается;
+- один домен `avela.jaraslau.dev`: Mini App — `/`, API — `/api/*`, status page — `/status/`;
+- DNS — Cloudflare, TLS Full (strict), сертификаты в `deploy/certs`.
 
 ```bash
 # на сервере, в каталоге репозитория
-cp .env.example .env          # заполнить секреты (BOT_TOKEN, DATABASE_URL, JWT_SECRET, WEBHOOK_*)
-mkdir -p deploy/certs         # положить fullchain.pem и privkey.pem
+cp .env.example .env          # BOT_TOKEN, DATABASE_URL, JWT_SECRET, WEBHOOK_*
+mkdir -p deploy/certs         # fullchain.pem и privkey.pem
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-- `deploy/nginx/avela.conf` — TLS и маршрутизация доменов;
+- `deploy/nginx/avela.conf` — TLS и маршрутизация одного origin (CORS внутри домена не нужен);
 - `docker-compose.prod.yml` — api, worker, web, nginx;
-- `.github/workflows/deploy.yml` — ручной выкат (workflow_dispatch) с
-  подтверждением `confirm=yes`; по умолчанию шаг деплоя выключен, пока не
-  задана переменная репозитория `DEPLOY_ENABLED=true` и секреты
-  `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`.
-
-Деплой выполняется только после отдельного согласования: VPS, DNS,
-сертификаты и GitHub Secrets настраиваются вручную. Пошаговая инструкция
-первого развёртывания — в `deploy/README.md`, скрипт — `deploy/setup-vps.sh`.
-
-## Автор
-
-**Jaraslau Kunin** — Python-разработчик, GitHub: [@jaraslaukunin](https://github.com/jaraslaukunin)
+- `.github/workflows/deploy.yml` — `workflow_dispatch` с обязательным `confirm=yes`; шаг выката
+  включается только при переменной репозитория `DEPLOY_ENABLED=true` и секретах `DEPLOY_HOST`,
+  `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`;
+- `deploy/setup-vps.sh` — установка Docker и swap, клонирование репозитория в `/opt/avela`.
 
 ## Лицензия
 
-Проект source-available: код можно просматривать и скачивать, но изменение,
-распространение и коммерческое использование — только с письменного
-согласия владельца. Подробности в `LICENSE`.
+Проект **source-available** по [Avela Source-Available License 1.0](LICENSE): код можно
+просматривать, скачивать и запускать для личного некоммерческого ознакомления.
+Изменение, распространение, публикация, хостинг и коммерческое использование — только
+с письменного разрешения правообладателя. Гарантий нет, ПО поставляется «как есть».
 
-Изменения принимаются только после согласования с владельцем.
+Пул-реквесты и патчи принимаются только по согласованию с владельцем: отправляя вклад,
+вы соглашаетесь с условиями лицензии. Автор — **Jaraslau Kunin**
+([@jaraslaukunin](https://github.com/jaraslaukunin)).
+
+---
+
+<div align="center">
+
+**[github.com/jaraslaukunin/avela-telegram-bot](https://github.com/jaraslaukunin/avela-telegram-bot)** — поставьте ⭐, если проект оказался полезен.
+
+</div>
